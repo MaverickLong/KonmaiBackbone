@@ -1,0 +1,18 @@
+[Unit]
+Description=Konmai Backbone downloader
+After=network-online.target konmai-host.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=konmai
+Group=konmai
+WorkingDirectory=/srv/konmai/app/downloader
+ExecStart=/srv/konmai/app/downloader/.venv/bin/konmai-downloader --config /etc/konmai/downloader.json run
+Restart=always
+RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

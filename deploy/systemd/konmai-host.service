@@ -1,0 +1,19 @@
+[Unit]
+Description=Konmai Backbone host
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=konmai
+Group=konmai
+WorkingDirectory=/srv/konmai/app/host
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /srv/konmai/app/host/dist/main.js --config /etc/konmai/host.json
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
