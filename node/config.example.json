@@ -1,0 +1,13 @@
+{
+  "nodeId": 1,
+  "token": "paste the enrollment token shown by the dashboard",
+  "hostUrl": "https://cdn.example.com",
+  "storageDirectory": "/srv/konmai/files",
+  "databasePath": "/srv/konmai/node.sqlite",
+  "maxStorageBytes": null,
+  "minFreeBytes": 2147483648,
+  "fetchConcurrency": 1,
+  "syslog": { "host": "127.0.0.1", "port": 5140 },
+  "reconcileIntervalHours": 24,
+  "logLevel": "info"
+}
