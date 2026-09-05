@@ -3,4 +3,4 @@ dist
 downloader
 docs/PLAN.md
 CLAUDE.md
-**/migrations/.snapshot-*.json
+**/migrations/schema.json

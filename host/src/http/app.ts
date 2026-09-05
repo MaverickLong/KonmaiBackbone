@@ -5,6 +5,7 @@ import { requireAdmin } from './auth.js';
 import type { Context } from './context.js';
 import { errorHandler } from './errors.js';
 import { ingestRouter } from './ingest.js';
+import { nodeAuthRouter, storeRouter } from './nodeAuth.js';
 import { appsRouter } from './admin/apps.js';
 import { nodesRouter, type NodeActions } from './admin/nodes.js';
 import { sessionRouter } from './admin/session.js';
@@ -12,7 +13,6 @@ import { variantsRouter } from './admin/variants.js';
 
 export interface AppRouters {
   nodeActions: NodeActions;
-  extra?: (app: Express) => void;
 }
 
 export function createApp(context: Context, routers: AppRouters): Express {
@@ -38,9 +38,9 @@ export function createApp(context: Context, routers: AppRouters): Express {
   admin.use('/nodes', nodesRouter(context, routers.nodeActions));
   app.use('/api/admin', admin);
   app.use('/api/ingest', ingestRouter(context));
+  app.use('/api/internal/node-auth', nodeAuthRouter(context));
+  app.use('/store', storeRouter(context));
   app.use('/icons', express.static(context.store.iconsDirectory, { maxAge: '1h' }));
-
-  routers.extra?.(app);
 
   app.use(errorHandler(context.logger));
   return app;
