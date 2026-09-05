@@ -10,7 +10,13 @@ import {
   version,
 } from './catalogue.js';
 
-export const errorCodes = ['VALIDATION', 'UNAUTHORIZED', 'NOT_FOUND', 'CONFLICT', 'INTERNAL'] as const;
+export const errorCodes = [
+  'VALIDATION',
+  'UNAUTHORIZED',
+  'NOT_FOUND',
+  'CONFLICT',
+  'INTERNAL',
+] as const;
 export type ErrorCode = (typeof errorCodes)[number];
 
 export interface ErrorResponse {
@@ -55,7 +61,10 @@ const nodeFields = {
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/, 'expected a hostname'),
+    .regex(
+      /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/,
+      'expected a hostname',
+    ),
   countries: z.array(countryCode).max(250),
   catchAll: z.boolean(),
   weight: z.number().int().min(1).max(10000),

@@ -149,7 +149,13 @@ export interface NodeCreatedView {
 }
 
 export interface OverviewView {
-  nodes: { online: number; faulty: number; unknown: number; disabled: number; agentsConnected: number };
+  nodes: {
+    online: number;
+    faulty: number;
+    unknown: number;
+    disabled: number;
+    agentsConnected: number;
+  };
   apps: number;
   variants: number;
   activeReleases: number;
