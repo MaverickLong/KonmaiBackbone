@@ -1,0 +1,16 @@
+{
+  "host": { "url": "http://127.0.0.1:3000", "ingestToken": "same value as ingestToken in the host config.json" },
+  "stagingDirectory": "/srv/konmai/storage/staging",
+  "credentialsFile": "/srv/konmai/downloader-credentials.json",
+  "google": {
+    "email": "account@gmail.com",
+    "password": "app password",
+    "devices": ["crackling", "walleye"],
+    "locale": "en_US",
+    "timezone": "UTC"
+  },
+  "githubToken": null,
+  "dailyAt": "03:00",
+  "pollSeconds": 30,
+  "logLevel": "INFO"
+}
