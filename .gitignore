@@ -141,3 +141,21 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Konmai Backbone
+CLAUDE.md
+docs/PLAN.md
+downloader/config.json
+downloader/passwd.json
+downloader/konmai_backend.py
+downloader/credentials.json
+downloader/.venv/
+__pycache__/
+*.pyc
+host/config.json
+node/config.json
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+storage/
+.vitest/

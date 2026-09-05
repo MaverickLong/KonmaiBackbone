@@ -1,0 +1,22 @@
+{
+  "name": "konmai-backbone",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "host",
+    "node",
+    "dashboard"
+  ],
+  "scripts": {
+    "build": "yarn workspace konmai-shared build && yarn workspace konmai-host build && yarn workspace konmai-node build && yarn workspace konmai-dashboard build",
+    "test": "yarn workspace konmai-shared test && yarn workspace konmai-host test && yarn workspace konmai-node test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

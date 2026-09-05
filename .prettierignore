@@ -1,0 +1,6 @@
+node_modules
+dist
+downloader
+docs/PLAN.md
+CLAUDE.md
+**/migrations/.snapshot-*.json
