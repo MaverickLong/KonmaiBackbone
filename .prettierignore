@@ -4,3 +4,4 @@ downloader
 docs/PLAN.md
 CLAUDE.md
 **/migrations/schema.json
+.claude
