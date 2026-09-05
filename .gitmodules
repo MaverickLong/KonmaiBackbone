@@ -1,0 +1,3 @@
+[submodule "downloader/googleplay-api"]
+	path = downloader/googleplay-api
+	url = https://github.com/marty0678/googleplay-api.git
