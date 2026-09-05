@@ -1,0 +1,22 @@
+{
+  "listen": { "host": "127.0.0.1", "port": 3000 },
+  "publicUrl": "https://cdn.example.com",
+  "storageDirectory": "/srv/konmai/storage",
+  "databasePath": "/srv/konmai/host.sqlite",
+  "admin": {
+    "passwordHash": "scrypt$...generate with: yarn cli hash-password <password>...",
+    "jwtSecret": "generate with: yarn cli secret",
+    "tokenLifetimeHours": 168
+  },
+  "ingestToken": "generate with: yarn cli secret",
+  "geoip": { "databasePath": "/srv/konmai/dbip-country-lite.mmdb" },
+  "email": {
+    "smtpUrl": "smtps://user:password@smtp.example.com:465",
+    "from": "konmai@example.com",
+    "to": ["ops@example.com"]
+  },
+  "quotaSafetyFraction": 0.97,
+  "probeIntervalMinutes": 5,
+  "deepVerifyCron": "0 4 * * 0",
+  "logLevel": "info"
+}
