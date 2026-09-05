@@ -8,6 +8,11 @@ const timeoutMilliseconds = 10_000;
 const emailCoalesceMilliseconds = 120_000;
 const staleAgentMilliseconds = 24 * 3_600_000;
 
+export interface ProberHooks {
+  agentConnected(nodeId: number): boolean;
+  statusChanged(nodeId: number): void;
+}
+
 export interface ProbeResult {
   healthy: boolean;
   reason: string | null;
@@ -55,7 +60,7 @@ export class Prober {
   constructor(
     private readonly context: Context,
     private readonly alerts: Alerts,
-    private readonly agentConnected: (nodeId: number) => boolean,
+    private readonly hooks: ProberHooks,
   ) {}
 
   start(): void {
@@ -95,6 +100,7 @@ export class Prober {
     }
     const result = await probeOnce(node.domain, node.id);
     const now = new Date();
+    const statusBefore = node.status;
     if (result.healthy) {
       node.lastHealthyAt = now;
       if (node.status === 'faulty') {
@@ -122,6 +128,9 @@ export class Prober {
       }
     }
     await em.flush();
+    if (node.status !== statusBefore) {
+      this.hooks.statusChanged(node.id);
+    }
   }
 
   private async transition(
@@ -147,7 +156,7 @@ export class Prober {
     const now = Date.now();
     for (const node of nodes) {
       if (
-        this.agentConnected(node.id) ||
+        this.hooks.agentConnected(node.id) ||
         now - (this.lastStaleWarningAt.get(node.id) ?? 0) < staleAgentMilliseconds
       ) {
         continue;

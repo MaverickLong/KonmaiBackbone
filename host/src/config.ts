@@ -32,6 +32,9 @@ const configSchema = z.object({
     })
     .nullable()
     .default(null),
+  // With nginx in front, host-served downloads go through X-Accel-Redirect; without it the
+  // backend streams files itself (development only).
+  behindNginx: z.boolean().default(true),
   quotaSafetyFraction: z.number().min(0.5).max(1).default(0.97),
   probeIntervalMinutes: z.number().positive().default(5),
   deepVerifyCron: z.string().default('0 4 * * 0'),
