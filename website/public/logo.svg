@@ -1,0 +1,132 @@
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   id="svg34"
+   version="1.1"
+   viewBox="0 0  380 280">
+  <metadata
+     id="metadata40">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs38" />
+  <svg
+     height="100%"
+     width="100%"
+     id="svg9"
+     version="1.1"
+     viewBox="0 0 380 280">
+    <linearGradient
+       y2="0"
+       x2="1"
+       y1="0"
+       x1="0"
+       id="bg_color_gradient">
+      <stop
+         id="stop2"
+         style="stop-color:#ffffff;stop-opacity:1"
+         offset="0%" />
+      <stop
+         id="stop4"
+         style="stop-color:#ffffff;stop-opacity:1"
+         offset="100%" />
+    </linearGradient>
+    <path
+       id="rect7"
+       d="M 0,0 H 380 V 280 H 0 Z"
+       style="fill:url(#bg_color_gradient);fill-opacity:1" />
+  </svg>
+  <g
+     transform="translate(70,103.5)"
+     id="container">
+    <svg
+       id="svg19"
+       version="1.1"
+       height="62"
+       width="144"
+       y="6"
+       x="0.0">
+      <svg
+         id="svg17"
+         version="1.1"
+         width="144"
+         viewBox="0 0 144 62"
+         height="62">
+        <g
+           style="fill:#61bbca;fill-rule:evenodd"
+           id="g15">
+          <path
+             id="path11"
+             d="M 102,0 C 59.286432,2.9107981 35.879397,23.577465 31.778895,62 H 0 C 16.40201,20.666667 50.40201,0 102,0 Z" />
+          <path
+             id="path13"
+             d="M 82,6.7820118 C 110.01102,-1.3906114 130.67769,3.6820513 144,22 H 123.50413 C 113.5978,9.6001578 99.763085,4.5274951 82,6.7820118 Z" />
+        </g>
+      </svg>
+    </svg>
+    <g
+       id="text21"
+       style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+       aria-label="K">
+      <path
+         id="path43"
+         style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+         d="M 63.28,49.75 74,65.59 H 67.12 L 57.24,50.95 v 14.84 h -10 V 32.35 h 10 v 16.16 h 1.96 l 9.92,-15.4 H 74 Z" />
+    </g>
+    <g
+       id="text23"
+       style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+       aria-label="O">
+      <path
+         id="path46"
+         style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+         d="m 109.25,32.27 v 26.64 q 0.04,1.32 -0.52,2.56 -0.52,1.24 -1.48,2.16 -0.92,0.96 -2.16,1.52 -1.2,0.56 -2.56,0.52 H 80.49 V 32.27 Z M 85.37,35.35 V 62.63 H 98.13 V 35.35 Z" />
+    </g>
+    <g
+       id="text25"
+       style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+       aria-label="N">
+      <path
+         id="path49"
+         style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+         d="m 120.455,32.23 10.32,21.88 V 32.23 h 10.68 v 33.56 h -10.24 l -10.6,-21.96 v 21.96 h -5 V 32.23 Z" />
+    </g>
+    <g
+       id="text27"
+       style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+       aria-label="M">
+      <path
+         id="path52"
+         style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+         d="m 156.775,32.31 3.56,18.4 3.6,-18.4 h 12.32 l 5.44,33.32 h -11.48 l -3.56,-21.8 -4.56,21.2 h -2.88 l -4.6,-21.24 -3.52,21.84 h -4.68 l 5.44,-33.32 z" />
+    </g>
+    <g
+       id="text29"
+       style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+       aria-label="A">
+      <path
+         id="path55"
+         style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+         d="m 207.515,32.23 11.68,33.44 h -10.36 l -3.92,-10.64 h -10.16 l -3.4,10.64 h -5.6 l 11.76,-33.44 z m -11.88,19.68 h 8.44 l -4.44,-12.36 z" />
+    </g>
+    <g
+       id="text31"
+       style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+       aria-label="I">
+      <path
+         id="path58"
+         style="font-size:40px;font-family:'Ideafonts DaZiBao';fill:#0b4e69;fill-opacity:1"
+         d="m 235.915,35.31 v 27.32 h 2.92 v 3.04 h -15.92 v -3.04 h 3 V 35.31 h -3 v -3.12 h 15.92 v 3.12 z" />
+    </g>
+  </g>
+</svg>

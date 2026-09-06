@@ -5,10 +5,11 @@
     "shared",
     "host",
     "node",
-    "dashboard"
+    "dashboard",
+    "website"
   ],
   "scripts": {
-    "build": "yarn workspace konmai-shared build && yarn workspace konmai-host build && yarn workspace konmai-node build && yarn workspace konmai-dashboard build",
+    "build": "yarn workspace konmai-shared build && yarn workspace konmai-host build && yarn workspace konmai-node build && yarn workspace konmai-dashboard build && yarn workspace konmai-website build",
     "test": "yarn workspace konmai-shared test && yarn workspace konmai-host test && yarn workspace konmai-node test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -1,0 +1,29 @@
+a {
+  color: var(--mantine-color-brand-6);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Sections targeted by the alphabet bar stop below the sticky header. */
+.letter-section {
+  scroll-margin-top: 72px;
+}
+
+.document p,
+.document li {
+  line-height: 1.8;
+  overflow-wrap: break-word;
+}
+
+.document pre {
+  white-space: pre-wrap;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  padding: 1rem;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-default-hover);
+}
