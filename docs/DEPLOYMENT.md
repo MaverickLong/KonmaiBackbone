@@ -106,6 +106,19 @@ uv run konmai-downloader --config /etc/konmai/downloader.json publish <packageNa
 
 The last form publishes hand-made releases for `manual` variants.
 
+## Public website (Konmai Academy)
+
+The site in `website/` is a static build that reads the catalogue from the host's public API
+(`/api/public/apps`, CORS enabled) and links to `/d/…` and `/icons/…` on the host. Build it with
+the host's public origin baked in and serve `website/dist` from any static web server:
+
+```sh
+VITE_API_BASE=https://cdn.example.com yarn workspace konmai-website build
+```
+
+nginx needs only `root /srv/konmai/app/website/dist; location / { try_files $uri /index.html; }`.
+Leave `VITE_API_BASE` unset when the site is served from the same origin as the host.
+
 ## Updating
 
 ```sh

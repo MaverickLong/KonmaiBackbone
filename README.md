@@ -12,6 +12,7 @@ APIs, and a **dashboard** shows what is going on.
 | `host/`       | Express + MikroORM backend: routing, admin API, node gateway | MIT     |
 | `node/`       | node agent: reconcile, fetch, traffic accounting             | MIT     |
 | `dashboard/`  | Vite + React + Mantine admin panel                           | MIT     |
+| `website/`    | Vite + React + Mantine public download site (Konmai Academy) | MIT     |
 | `downloader/` | Python worker publishing releases to the host                | GPLv3   |
 | `deploy/`     | reference nginx configs and systemd units                    | MIT     |
 | `docs/`       | deployment guide                                             | MIT     |
@@ -25,7 +26,7 @@ submodule (`git submodule update --init`).
 
 ```sh
 yarn install
-yarn build                                 # shared → host → node → dashboard
+yarn build                                 # shared → host → node → dashboard → website
 yarn test                                  # vitest for shared, host and node
 cd downloader && uv sync && uv run python scripts/generate_protobuf.py && uv run pytest
 ```
@@ -35,6 +36,7 @@ Running locally: create a `config.json` for the host from `host/config.example.j
 `yarn workspace konmai-host dev -- --config path/to/config.json`, create a node in the dashboard
 (`yarn workspace konmai-dashboard dev` proxies to `KONMAI_HOST_URL`, default
 `http://127.0.0.1:3000`), and start the agent with
-`yarn workspace konmai-node dev -- --config path/to/node.json`.
+`yarn workspace konmai-node dev -- --config path/to/node.json`. The public site runs with
+`yarn workspace konmai-website dev` (also proxied to `KONMAI_HOST_URL`).
 
 Formatting: `yarn format` (Prettier) and `uv run autopep8 --in-place --recursive src tests`.
