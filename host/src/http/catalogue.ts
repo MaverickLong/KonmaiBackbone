@@ -36,6 +36,7 @@ export async function publicCatalogue(
     entry.variants.push({
       slug: variant.slug,
       name: variant.name,
+      sourceType: variant.source.type,
       release: {
         version: release.version,
         versionCode: release.versionCode ?? null,

@@ -199,6 +199,7 @@ export interface PublicFileView {
 export interface PublicVariantView {
   slug: string;
   name: string;
+  sourceType: Source['type'];
   release: {
     version: string;
     versionCode: number | null;
