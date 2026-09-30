@@ -16,7 +16,7 @@ import { IconExternalLink, IconMoon, IconSun } from '@tabler/icons-react';
 import { Link, Outlet, useLocation } from 'react-router';
 
 const links = [
-  { to: '/', label: 'Konmai Academy' },
+  { to: '/', label: '游戏下载' },
   { to: '/bms/download', label: 'BMS 相关工具' },
   { to: '/license', label: '开源与许可证' },
 ];
@@ -41,7 +41,7 @@ export function Shell() {
           <Group gap="sm">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             {/*<Image src="/logo.svg" alt="" h={28} w="auto" />*/}
-            <Title order={4}>Konmai Academy</Title>
+            <Title order={4}>Konmai音游下载站</Title>
           </Group>
           <ActionIcon
             variant="subtle"
