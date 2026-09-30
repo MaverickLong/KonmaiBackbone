@@ -40,7 +40,7 @@ export function Shell() {
         <Group h="100%" px="md" justify="space-between">
           <Group gap="sm">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Image src="/logo.svg" alt="" h={28} w="auto" />
+            {/*<Image src="/logo.svg" alt="" h={28} w="auto" />*/}
             <Title order={4}>Konmai Academy</Title>
           </Group>
           <ActionIcon
