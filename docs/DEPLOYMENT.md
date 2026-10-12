@@ -92,9 +92,11 @@ sudo -u konmai uv run python scripts/generate_protobuf.py
 Create `/etc/konmai/downloader.json` from `downloader/config.example.json`: the host URL is the
 backend's loopback address, `ingestToken` must equal the host's, `stagingDirectory` must be
 `<host storageDirectory>/staging` (same filesystem as the store, files are moved with `rename`),
-and `google` holds the Play account's email, the device codenames to try in order (`crackling`
-is API 26, `walleye` API 28 in the bundled `device.properties`), a locale such as `ja_JP` and an
-IANA timezone such as `Asia/Tokyo`.
+and `google` holds the Play account's email, the device codenames to try in order, a locale
+such as `ja_JP` and an IANA timezone such as `Asia/Tokyo`. Device codenames come from the
+submodule's `gpapi/device.properties` (up to `walleye`, Android 9) plus the newer profiles in
+`downloader/src/gpapi/devices.properties`: `op_8_pro` (Android 10), `sm_s20_plus` (Android 13)
+and `nothing_p1` (Android 14).
 
 Then sign in to Google once. Google refuses password and app-password logins for many accounts
 (`BadAuthentication`), so the downloader signs in with a one-time browser token instead:
