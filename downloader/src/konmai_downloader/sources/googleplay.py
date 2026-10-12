@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from gpapi.googleplay import GooglePlayAPI, LoginError, RequestError
+from gpapi.googleplay import GooglePlayAPI
 
-from ..credentials import DeviceLogin
+from ..google_account import GoogleLoginError, master_login, open_device, password_credential
 from ..host import VariantTask
 from ..staging import ReleaseDirectory, StagedFile, sanitize_version
 from .base import RemoteVersion, SourceContext, SourceError
@@ -14,36 +14,57 @@ logger = logging.getLogger(__name__)
 
 
 class GooglePlaySource:
-    """Talks to Google Play through one login per configured device, trying devices in order."""
+    """Talks to Google Play through one session per configured device, trying devices in order."""
 
     def __init__(self, context: SourceContext) -> None:
         if context.config.google is None:
             raise SourceError("google account is not configured")
         self.google = context.config.google
         self.credentials = context.credentials
-        self.apis: dict[str, GooglePlayAPI] = {}
+        self.sessions = context.play_sessions
+
+    def _master_token(self) -> str:
+        token = self.credentials.master_token_for(self.google.email)
+        if token is not None:
+            return token
+        if not self.google.password:
+            raise SourceError("not signed in to Google; run `konmai-downloader login` once")
+        try:
+            token = master_login(
+                self.google.email,
+                password_credential(self.google.email, self.google.password),
+                self.google.locale,
+            )
+        except (GoogleLoginError, OSError) as error:
+            raise SourceError(f"google login failed: {error}") from error
+        self.credentials.store_master_token(self.google.email, token)
+        return token
 
     def _api(self, device: str, locale: str, timezone: str) -> GooglePlayAPI:
         key = f"{device}|{locale}|{timezone}"
-        api = self.apis.get(key)
+        api = self.sessions.get(key)
         if api is not None:
             return api
-        api = GooglePlayAPI(locale, timezone, device)
-        cached = self.credentials.get(device)
-        if cached is not None:
-            try:
-                api.login(gsfId=cached.gsf_id, authSubToken=cached.auth_sub_token)
-                self.apis[key] = api
-                return api
-            except (LoginError, RequestError, Exception) as error:
-                logger.warning("cached login for %s rejected (%s), logging in again", device, error)
-                self.credentials.forget(device)
+        master_token = self._master_token()
+        gsf_id = self.credentials.gsf_id(device)
         try:
-            gsf_id, token = api.login(self.google.email, self.google.password, returnParams=True)
+            api = open_device(device, locale, timezone,
+                              self.google.email, master_token, gsf_id)
         except Exception as error:
-            raise SourceError(f"google login failed for device {device}: {error}") from error
-        self.credentials.store(device, DeviceLogin(int(gsf_id), str(token)))
-        self.apis[key] = api
+            if gsf_id is None:
+                raise SourceError(f"google login failed for device {device}: {error}") from error
+            # The stored check-in may have been revoked; check the device in again once.
+            logger.warning(
+                "session for %s failed (%s), checking the device in again", device, error)
+            self.credentials.forget_device(device)
+            try:
+                api = open_device(device, locale, timezone, self.google.email, master_token, None)
+            except Exception as retry_error:
+                raise SourceError(
+                    f"google login failed for device {device}: {retry_error}") from retry_error
+        if gsf_id != api.gsfId:
+            self.credentials.store_device(device, api.gsfId)
+        self.sessions[key] = api
         return api
 
     def _settings(self, task: VariantTask) -> tuple[str, list[str], str, str, bool]:
@@ -67,6 +88,8 @@ class GooglePlaySource:
             except Exception as error:
                 failures.append(f"{device}: {error}")
                 logger.info("device %s failed for %s: %s", device, package_name, error)
+                # Play tokens expire; the next attempt mints a fresh one from the master token.
+                self.sessions.pop(f"{device}|{locale}|{timezone}", None)
         raise SourceError("; ".join(failures))
 
     def check(self, task: VariantTask) -> RemoteVersion | None:

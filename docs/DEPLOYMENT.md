@@ -92,8 +92,23 @@ sudo -u konmai uv run python scripts/generate_protobuf.py
 Create `/etc/konmai/downloader.json` from `downloader/config.example.json`: the host URL is the
 backend's loopback address, `ingestToken` must equal the host's, `stagingDirectory` must be
 `<host storageDirectory>/staging` (same filesystem as the store, files are moved with `rename`),
-and `google` holds the Play account (an app password) plus the device codenames to try in order
-(`crackling` is API 26, `walleye` API 28 in the bundled `device.properties`).
+and `google` holds the Play account's email, the device codenames to try in order (`crackling`
+is API 26, `walleye` API 28 in the bundled `device.properties`), a locale such as `ja_JP` and an
+IANA timezone such as `Asia/Tokyo`.
+
+Then sign in to Google once. Google refuses password and app-password logins for many accounts
+(`BadAuthentication`), so the downloader signs in with a one-time browser token instead:
+
+```sh
+sudo -u konmai uv run konmai-downloader --config /etc/konmai/downloader.json login
+```
+
+The command explains how to copy the `oauth_token` cookie from
+`https://accounts.google.com/EmbeddedSetup`, exchanges it for a long-lived master token stored in
+`credentialsFile`, checks every configured device in with Google, and reads one Play listing per
+device to prove the session works. Run it again only if Google revokes the master token, for
+example after a password change. A `google.password` is still accepted as a fallback for
+accounts where Google allows it, but it is not needed.
 
 `systemctl enable --now konmai-downloader` runs the daily loop; the dashboard's **Check now**
 buttons are picked up within `pollSeconds`. One-off runs:

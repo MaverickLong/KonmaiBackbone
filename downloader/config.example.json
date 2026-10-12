@@ -4,10 +4,9 @@
   "credentialsFile": "/srv/konmai/downloader-credentials.json",
   "google": {
     "email": "account@gmail.com",
-    "password": "app password",
     "devices": ["crackling", "walleye"],
-    "locale": "en_US",
-    "timezone": "UTC"
+    "locale": "ja_JP",
+    "timezone": "Asia/Tokyo"
   },
   "githubToken": null,
   "dailyAt": "03:00",

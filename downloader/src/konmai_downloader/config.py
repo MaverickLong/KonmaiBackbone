@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -20,10 +21,22 @@ class HostConfig(CamelModel):
 
 class GoogleConfig(CamelModel):
     email: str
-    password: str
+    # Optional fallback: Google refuses password (and app password) logins for many accounts,
+    # in which case `konmai-downloader login` with a browser oauth_token is the way in.
+    password: str | None = None
     devices: list[str] = Field(default_factory=lambda: ["crackling", "walleye"], min_length=1)
-    locale: str = "en_US"
+    locale: str = Field(default="en_US", pattern=r"^[a-z]{2}_[A-Z]{2}$")
+    # Reported to Google at device check-in.
     timezone: str = "UTC"
+
+    @field_validator("timezone")
+    @classmethod
+    def known_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError(f"unknown timezone {value!r}; use an IANA name such as Asia/Tokyo")
+        return value
 
 
 class Config(CamelModel):

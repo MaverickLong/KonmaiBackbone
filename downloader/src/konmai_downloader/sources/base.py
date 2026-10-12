@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Protocol
 
 from ..config import Config
 from ..credentials import Credentials
 from ..host import VariantTask
 from ..staging import ReleaseDirectory, StagedFile
+
+if TYPE_CHECKING:
+    from gpapi.googleplay import GooglePlayAPI
 
 
 class SourceError(Exception):
@@ -23,6 +26,9 @@ class RemoteVersion:
 class SourceContext:
     config: Config
     credentials: Credentials
+    # Open Play sessions by device and locale, shared by every variant so a pass does not
+    # sign in once per app.
+    play_sessions: dict[str, GooglePlayAPI] = field(default_factory=dict)
 
 
 class Source(Protocol):
