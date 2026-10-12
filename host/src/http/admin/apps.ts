@@ -4,6 +4,7 @@ import { Router } from 'express';
 import {
   appCreate,
   appUpdate,
+  compareNames,
   packageName as packageNameSchema,
   variantCreate,
 } from 'konmai-shared';
@@ -63,7 +64,9 @@ export function appsRouter(context: Context): Router {
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1_048_576 } });
 
   router.get('/', async (_request, response) => {
-    const apps = await em().find(App, {}, { orderBy: { displayName: 'asc' } });
+    const apps = (await em().find(App, {})).sort((first, second) =>
+      compareNames(first.displayName, second.displayName),
+    );
     response.json(await appViews(context, em(), apps));
   });
 

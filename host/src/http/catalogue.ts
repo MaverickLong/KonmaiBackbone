@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
-import type { PublicAppView } from 'konmai-shared';
+import { compareNames, type PublicAppView } from 'konmai-shared';
 import { App, Release, ReleaseFile, Variant } from '../db/entities.js';
 import type { EntityManager } from '../db/orm.js';
 import { downloadUrl, iconUrl } from '../urls.js';
@@ -15,7 +15,7 @@ export async function publicCatalogue(
     { state: 'active', variant: { enabled: true } },
     {
       populate: ['variant', 'variant.app'],
-      orderBy: { variant: { app: { displayName: 'asc' }, slug: 'asc' } },
+      orderBy: { variant: { slug: 'asc' } },
     },
   );
   const files = await em.find(
@@ -63,7 +63,9 @@ export async function publicCatalogue(
     });
     apps.set(app.packageName, entry);
   }
-  return [...apps.values()];
+  return [...apps.values()].sort((first, second) =>
+    compareNames(first.displayName, second.displayName),
+  );
 }
 
 export function catalogueRouter(context: Context): Router {

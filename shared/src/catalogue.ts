@@ -77,6 +77,24 @@ export function fileUrlPath(locator: FileLocator): string {
   return `${locator.packageName}/${locator.variant}/${locator.version}/${encodeURIComponent(locator.fileName)}`;
 }
 
+// Display names sort by their letters alone: case, accents, digits, spaces and punctuation are
+// ignored, so "osu!droid" lands next to "OverRapid" instead of after every capitalised name.
+export function nameSortKey(name: string): string {
+  return name
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^\p{L}]/gu, '');
+}
+
+export function compareNames(first: string, second: string): number {
+  const firstKey = nameSortKey(first);
+  const secondKey = nameSortKey(second);
+  if (firstKey !== secondKey) {
+    return firstKey < secondKey ? -1 : 1;
+  }
+  return first < second ? -1 : first > second ? 1 : 0;
+}
+
 export function fileKey(locator: FileLocator): string {
   return filePath(locator);
 }

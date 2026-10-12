@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fileName, fileUrlPath, source, version } from './catalogue.js';
+import { compareNames, fileName, fileUrlPath, nameSortKey, source, version } from './catalogue.js';
 
 describe('catalogue schemas', () => {
   it('accepts plain file names and rejects path tricks', () => {
@@ -23,6 +23,34 @@ describe('catalogue schemas', () => {
     const parsed = source.parse({ type: 'googleplay', futureOption: 1 });
     expect(parsed).toEqual({ type: 'googleplay', futureOption: 1 });
     expect(source.safeParse({ type: 'unknown' }).success).toBe(false);
+  });
+
+  it('sorts names by letters only, ignoring case, accents and symbols', () => {
+    const names = [
+      'Zyon载音',
+      'osu!droid',
+      'BanG Dream!',
+      ' Paradigm: Reboot',
+      'arcaea',
+      'D4DJ Groovy Mix',
+      'Étoile',
+      'OverRapid',
+      'Arcaea',
+      'beatmania',
+    ];
+    expect([...names].sort(compareNames)).toEqual([
+      'Arcaea',
+      'arcaea',
+      'BanG Dream!',
+      'beatmania',
+      'D4DJ Groovy Mix',
+      'Étoile',
+      'osu!droid',
+      'OverRapid',
+      ' Paradigm: Reboot',
+      'Zyon载音',
+    ]);
+    expect(nameSortKey('TAKUMI³')).toBe('takumi');
   });
 
   it('encodes file names in URL paths', () => {
