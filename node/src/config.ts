@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
+const minimumReserveBytes = 1_073_741_824;
+
 const configSchema = z.object({
   nodeId: z.number().int().positive(),
   token: z.string().min(16),
@@ -9,7 +11,12 @@ const configSchema = z.object({
   storageDirectory: z.string().min(1),
   databasePath: z.string().min(1),
   maxStorageBytes: z.number().int().positive().nullable().default(null),
-  minFreeBytes: z.number().int().nonnegative().default(2_147_483_648),
+  // Free space the node never fills with packages; at least 1 GiB so the system stays usable.
+  minFreeBytes: z
+    .number()
+    .int()
+    .min(minimumReserveBytes, 'must keep at least 1 GiB (1073741824 bytes) free')
+    .default(2_147_483_648),
   fetchConcurrency: z.number().int().min(1).max(8).default(1),
   syslog: z
     .object({

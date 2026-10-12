@@ -78,6 +78,11 @@ installed for the `konmai` user), `yarn` 1, and on the host additionally `uv` an
 4. `systemctl enable --now konmai-node`. Within a few seconds the dashboard shows the agent
    connected; within five minutes the probe marks the node online and the first files arrive.
 
+A node never fills its disk: `minFreeBytes` (default 2 GiB, minimum 1 GiB) stays free. A release
+is only fetched if it fits above that reserve, and a download in progress stops, deletes its
+partial file and reports "skipped, no space" if other data shrinks the free space while it runs.
+`maxStorageBytes` additionally caps how much the node stores in total.
+
 The only things a node needs from the outside world are outbound HTTPS to the host and inbound
 HTTPS from users. There is no inbound API on the node.
 

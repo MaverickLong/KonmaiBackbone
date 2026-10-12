@@ -9,15 +9,22 @@ import {
   type ManifestRelease,
   type ManifestVariant,
   type ReleaseLocator,
+  type SyncOutcome,
 } from 'konmai-shared';
 import type { MikroORM } from '@mikro-orm/sqlite';
 import type { Config } from './config.js';
 import { LocalFile, LocalRelease } from './db/entities.js';
-import { downloadWithRetries } from './fetch.js';
+import { downloadWithRetries, type FetchFailure } from './fetch.js';
 import type { Link } from './link.js';
 import type { Logger } from './logger.js';
 import type { Storage } from './storage.js';
 import type { TrafficMeter } from './traffic.js';
+
+const syncOutcomes: Record<FetchFailure, SyncOutcome> = {
+  hash: 'failed_hash',
+  network: 'failed_network',
+  space: 'skipped_no_space',
+};
 
 export interface PlannedActions {
   prune: FileLocator[];
@@ -241,6 +248,7 @@ export class Reconciler {
         this.config.token,
         this.storage.filePath(locator),
         file,
+        this.config.minFreeBytes,
       );
       attempts = Math.max(attempts, outcome.attempts);
       this.traffic.addIngress(outcome.bytesDownloaded);
@@ -252,7 +260,7 @@ export class Reconciler {
           type: 'syncResult',
           payload: {
             ...release,
-            outcome: outcome.failure === 'hash' ? 'failed_hash' : 'failed_network',
+            outcome: syncOutcomes[outcome.failure ?? 'network'],
             attempts: outcome.attempts,
             detail: outcome.detail ?? undefined,
           },

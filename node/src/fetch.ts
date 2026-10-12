@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, rename, rm, stat, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -16,16 +16,21 @@ export interface FetchOutcome {
   ok: boolean;
   attempts: number;
   bytesDownloaded: number;
-  failure: 'hash' | 'network' | null;
+  failure: FetchFailure | null;
   detail: string | null;
 }
 
+// `space` means writing on would eat into the configured free-space reserve.
+export type FetchFailure = 'hash' | 'network' | 'space';
+
 const maxAttempts = 3;
 const retryDelaysMilliseconds = [5_000, 30_000];
+// Free space is re-read whenever this much more has been written, starting with the first chunk.
+const spaceCheckIntervalBytes = 64 * 1_048_576;
 
 export class FetchError extends Error {
   constructor(
-    readonly kind: 'hash' | 'network',
+    readonly kind: FetchFailure,
     message: string,
   ) {
     super(message);
@@ -41,14 +46,21 @@ async function hashPrefix(
   return hash;
 }
 
+async function freeBytes(directory: string): Promise<number> {
+  const disk = await statfs(directory);
+  return Number(disk.bavail) * Number(disk.bsize);
+}
+
 // Downloads to `<destination>.part`, resuming an existing part on the first attempt only, and
-// renames into place once size and hash match. Returns the number of bytes transferred.
+// renames into place once size and hash match. Writing stops before free space would drop
+// below `minFreeBytes`. Returns the number of bytes transferred.
 export async function downloadFile(
   url: string,
   token: string,
   destination: string,
   expected: ExpectedFile,
   resume: boolean,
+  minFreeBytes: number,
 ): Promise<number> {
   const partPath = destination + partSuffix;
   await mkdir(path.dirname(destination), { recursive: true });
@@ -83,7 +95,7 @@ export async function downloadFile(
     offset = 0;
     await rm(partPath, { force: true });
     hash.destroy();
-    return downloadFile(url, token, destination, expected, false);
+    return downloadFile(url, token, destination, expected, false, minFreeBytes);
   }
   if ((offset === 0 && response.status !== 200) || (offset > 0 && response.status !== 206)) {
     throw new FetchError('network', `unexpected HTTP ${response.status}`);
@@ -93,11 +105,30 @@ export async function downloadFile(
   }
 
   let transferred = 0;
+  let nextSpaceCheck = 0;
   const counter = new Transform({
     transform(chunk: Buffer, _encoding, callback) {
       transferred += chunk.length;
+      if (offset + transferred > expected.sizeBytes) {
+        callback(new FetchError('hash', `server sent more than ${expected.sizeBytes} bytes`));
+        return;
+      }
       hash.update(chunk);
-      callback(null, chunk);
+      if (transferred < nextSpaceCheck) {
+        callback(null, chunk);
+        return;
+      }
+      nextSpaceCheck = transferred + spaceCheckIntervalBytes;
+      freeBytes(path.dirname(partPath)).then((free) => {
+        const remaining = expected.sizeBytes - offset - transferred + chunk.length;
+        const headroom = free - Math.min(remaining, spaceCheckIntervalBytes);
+        callback(
+          headroom < minFreeBytes
+            ? new FetchError('space', `only ${free} bytes free, keeping ${minFreeBytes} in reserve`)
+            : null,
+          chunk,
+        );
+      }, callback);
     },
   });
   try {
@@ -107,6 +138,10 @@ export async function downloadFile(
       createWriteStream(partPath, { flags: offset > 0 ? 'a' : 'w' }),
     );
   } catch (error) {
+    if (error instanceof FetchError) {
+      await rm(partPath, { force: true });
+      throw error;
+    }
     throw new FetchError('network', error instanceof Error ? error.message : String(error));
   }
 
@@ -128,16 +163,25 @@ export async function downloadWithRetries(
   token: string,
   destination: string,
   expected: ExpectedFile,
+  minFreeBytes: number,
 ): Promise<FetchOutcome> {
   let bytesDownloaded = 0;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      bytesDownloaded += await downloadFile(url, token, destination, expected, attempt === 1);
+      bytesDownloaded += await downloadFile(
+        url,
+        token,
+        destination,
+        expected,
+        attempt === 1,
+        minFreeBytes,
+      );
       return { ok: true, attempts: attempt, bytesDownloaded, failure: null, detail: null };
     } catch (error) {
       const failure = error instanceof FetchError ? error.kind : 'network';
       const detail = error instanceof Error ? error.message : String(error);
-      if (attempt === maxAttempts) {
+      // Retrying cannot create disk space.
+      if (attempt === maxAttempts || failure === 'space') {
         return { ok: false, attempts: attempt, bytesDownloaded, failure, detail };
       }
       await sleep(retryDelaysMilliseconds[attempt - 1] ?? 30_000);
