@@ -38,4 +38,16 @@ export const TrafficBucket = defineEntity({
 });
 export type TrafficBucket = InferEntity<typeof TrafficBucket>;
 
-export const entities = [LocalFile, LocalRelease, TrafficBucket];
+export const AddressBucket = defineEntity({
+  name: 'AddressBucket',
+  properties: {
+    day: p.string().primary(),
+    address: p.string().primary(),
+    egressBytes: p.integer(),
+    requests: p.integer(),
+    acknowledged: p.boolean().default(false),
+  },
+});
+export type AddressBucket = InferEntity<typeof AddressBucket>;
+
+export const entities = [LocalFile, LocalRelease, TrafficBucket, AddressBucket];

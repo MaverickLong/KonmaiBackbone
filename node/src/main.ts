@@ -48,7 +48,7 @@ async function main(): Promise<void> {
         void reconciler.sendInventory().then(() => reconciler.run());
         break;
       case 'ack':
-        void traffic.acknowledge(message.payload.hourStarts);
+        void traffic.acknowledge(message.replyTo);
         break;
       case 'error':
         logger.warn(message.payload, 'host reported an error');

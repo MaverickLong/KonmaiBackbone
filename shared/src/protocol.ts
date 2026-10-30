@@ -29,6 +29,15 @@ const trafficBucket = z.object({
 });
 export type TrafficBucket = z.infer<typeof trafficBucket>;
 
+// Traffic of one client address on one UTC day, as seen in the node's nginx access log.
+const addressBucket = z.object({
+  day: z.iso.date(),
+  address: z.string().min(1).max(64),
+  egressBytes: z.number().int().nonnegative(),
+  requests: z.number().int().nonnegative(),
+});
+export type AddressBucket = z.infer<typeof addressBucket>;
+
 export const syncOutcomes = [
   'fetched',
   'skipped_no_space',
@@ -54,7 +63,10 @@ export const nodeMessage = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('traffic'),
     id: z.string(),
-    payload: z.object({ buckets: z.array(trafficBucket) }),
+    payload: z.object({
+      buckets: z.array(trafficBucket),
+      addresses: z.array(addressBucket).default([]),
+    }),
   }),
   z.object({
     type: z.literal('syncResult'),
