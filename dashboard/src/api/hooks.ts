@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import type {
+  AddressStatsView,
   AppView,
   DownloadStatsRow,
   DownloaderView,
@@ -35,6 +36,7 @@ export const keys = {
   events: (params: object) => ['events', params] as const,
   downloads: (params: object) => ['stats', 'downloads', params] as const,
   traffic: (params: object) => ['stats', 'traffic', params] as const,
+  addresses: (params: object) => ['stats', 'addresses', params] as const,
 };
 
 export function useOverview() {
@@ -116,6 +118,20 @@ export function useDownloadStats(
   return useQuery({
     queryKey: keys.downloads(params),
     queryFn: () => api<DownloadStatsRow[]>('/api/admin/stats/downloads', { query: { ...params } }),
+  });
+}
+
+export function useAddressStats(
+  params: RangeParams & {
+    nodeId?: number;
+    groupBy: 'address' | 'network';
+    network?: string;
+    limit: number;
+  },
+) {
+  return useQuery({
+    queryKey: keys.addresses(params),
+    queryFn: () => api<AddressStatsView>('/api/admin/stats/addresses', { query: { ...params } }),
   });
 }
 

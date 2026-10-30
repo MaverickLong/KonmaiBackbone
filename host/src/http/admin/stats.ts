@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import {
+  addressStatsQuery,
   downloadStatsQuery,
   eventsQuery,
   trafficStatsQuery,
+  type AddressStatsRow,
+  type AddressStatsView,
   type DownloadStatsRow,
   type DownloaderView,
   type OverviewView,
@@ -27,8 +30,10 @@ import { downloaderState } from '../ingest.js';
 
 const dayMilliseconds = 86_400_000;
 export const rawDownloadRetentionDays = 90;
+// Client addresses are personal data, so they are kept no longer than needed to spot abuse.
+export const addressRetentionDays = 90;
 
-function dayOf(date: Date): string {
+export function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
@@ -147,6 +152,66 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
       .map(([key, count]) => ({ key, count }))
       .sort((a, b) => (query.groupBy === 'day' ? a.key.localeCompare(b.key) : b.count - a.count));
     response.json(rows);
+  });
+
+  router.get('/stats/addresses', async (request, response) => {
+    const query = parse(addressStatsQuery, request.query);
+    const to = query.to === undefined ? new Date() : new Date(query.to);
+    const from =
+      query.from === undefined
+        ? new Date(to.getTime() - 30 * dayMilliseconds)
+        : new Date(query.from);
+    // The column comes from a fixed list, never from the request text.
+    const column = query.groupBy === 'network' ? 'network' : 'address';
+    const conditions = [
+      'day >= ?',
+      'day <= ?',
+      ...(query.nodeId === undefined ? [] : ['node_id = ?']),
+      ...(query.network === undefined ? [] : ['network = ?']),
+    ];
+    const parameters = [
+      dayOf(from),
+      dayOf(to),
+      ...(query.nodeId === undefined ? [] : [query.nodeId]),
+      ...(query.network === undefined ? [] : [query.network]),
+    ];
+    const where = conditions.join(' and ');
+    const rows = await em().execute<
+      {
+        key: string;
+        egress_bytes: number;
+        requests: number;
+        addresses: number;
+        nodes: number;
+      }[]
+    >(
+      `select ${column} as key, sum(egress_bytes) as egress_bytes, sum(requests) as requests,
+         count(distinct address) as addresses, count(distinct node_id) as nodes
+       from address_traffic where ${where}
+       group by ${column} order by sum(egress_bytes) desc limit ?`,
+      [...parameters, query.limit],
+    );
+    const [totals] = await em().execute<
+      { egress_bytes: number | null; requests: number | null; distinct_keys: number }[]
+    >(
+      `select sum(egress_bytes) as egress_bytes, sum(requests) as requests,
+         count(distinct ${column}) as distinct_keys
+       from address_traffic where ${where}`,
+      parameters,
+    );
+    const view: AddressStatsView = {
+      egressBytes: Number(totals?.egress_bytes ?? 0),
+      requests: Number(totals?.requests ?? 0),
+      distinctKeys: Number(totals?.distinct_keys ?? 0),
+      rows: rows.map((row): AddressStatsRow => ({
+        key: row.key,
+        egressBytes: Number(row.egress_bytes),
+        requests: Number(row.requests),
+        addresses: Number(row.addresses),
+        nodes: Number(row.nodes),
+      })),
+    };
+    response.json(view);
   });
 
   router.get('/stats/traffic', async (request, response) => {

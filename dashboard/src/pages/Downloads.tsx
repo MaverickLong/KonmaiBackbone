@@ -3,6 +3,7 @@ import { AreaChart, BarChart } from '@mantine/charts';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useApps, useDownloadStats, useNodes, useTrafficStats } from '../api/hooks';
+import { AddressTraffic } from '../components/AddressTraffic';
 import { formatBytes, formatCountry } from '../format';
 
 const ranges = [
@@ -113,6 +114,7 @@ export function DownloadsPage() {
           </Table.Tbody>
         </Table>
       </Paper>
+      <AddressTraffic from={from} nodes={nodes.data ?? []} />
     </Stack>
   );
 }

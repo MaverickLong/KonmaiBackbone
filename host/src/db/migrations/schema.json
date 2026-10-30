@@ -2,6 +2,174 @@
   "namespaces": [],
   "tables": [
     {
+      "name": "address_traffic",
+      "columns": {
+        "address": {
+          "name": "address",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "day": {
+          "name": "day",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "egress_bytes": {
+          "name": "egress_bytes",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "network": {
+          "name": "network",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "node_id": {
+          "name": "node_id",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "requests": {
+          "name": "requests",
+          "type": "integer",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "day"
+          ],
+          "composite": false,
+          "constraint": false,
+          "keyName": "address_traffic_day_index",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columnNames": [
+            "network"
+          ],
+          "composite": false,
+          "constraint": false,
+          "keyName": "address_traffic_network_index",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columnNames": [
+            "node_id"
+          ],
+          "composite": false,
+          "constraint": false,
+          "keyName": "address_traffic_node_id_index",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columnNames": [
+            "node_id",
+            "day",
+            "address"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "primary",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "address_traffic_node_id_foreign": {
+          "columnNames": [
+            "node_id"
+          ],
+          "constraintName": "address_traffic_node_id_foreign",
+          "localTableName": "address_traffic",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "node",
+          "deleteRule": "cascade"
+        }
+      },
+      "comment": null
+    },
+    {
       "name": "app",
       "columns": {
         "created_at": {
@@ -75,7 +243,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["package_name"],
+          "columnNames": [
+            "package_name"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -179,7 +349,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["at"],
+          "columnNames": [
+            "at"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "download_at_index",
@@ -187,7 +359,9 @@
           "unique": false
         },
         {
-          "columnNames": ["file_id"],
+          "columnNames": [
+            "file_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "download_file_id_index",
@@ -195,7 +369,9 @@
           "unique": false
         },
         {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "download_node_id_index",
@@ -203,7 +379,9 @@
           "unique": false
         },
         {
-          "columnNames": ["id"],
+          "columnNames": [
+            "id"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -215,18 +393,26 @@
       "triggers": [],
       "foreignKeys": {
         "download_file_id_foreign": {
-          "columnNames": ["file_id"],
+          "columnNames": [
+            "file_id"
+          ],
           "constraintName": "download_file_id_foreign",
           "localTableName": "download",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "release_file",
           "deleteRule": "cascade"
         },
         "download_node_id_foreign": {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "constraintName": "download_node_id_foreign",
           "localTableName": "download",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "node",
           "deleteRule": "set null"
         }
@@ -324,7 +510,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["variant_id"],
+          "columnNames": [
+            "variant_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "download_summary_variant_id_index",
@@ -332,7 +520,12 @@
           "unique": false
         },
         {
-          "columnNames": ["day", "variant_id", "node_id", "country"],
+          "columnNames": [
+            "day",
+            "variant_id",
+            "node_id",
+            "country"
+          ],
           "composite": true,
           "constraint": true,
           "keyName": "primary",
@@ -344,10 +537,14 @@
       "triggers": [],
       "foreignKeys": {
         "download_summary_variant_id_foreign": {
-          "columnNames": ["variant_id"],
+          "columnNames": [
+            "variant_id"
+          ],
           "constraintName": "download_summary_variant_id_foreign",
           "localTableName": "download_summary",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "variant",
           "deleteRule": "cascade"
         }
@@ -473,13 +670,19 @@
           "default": "'idle'",
           "comment": null,
           "collation": null,
-          "enumItems": ["idle", "checking", "downloading"],
+          "enumItems": [
+            "idle",
+            "checking",
+            "downloading"
+          ],
           "mappedType": "enum"
         }
       },
       "indexes": [
         {
-          "columnNames": ["id"],
+          "columnNames": [
+            "id"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -584,7 +787,12 @@
           "default": null,
           "comment": null,
           "collation": null,
-          "enumItems": ["became_faulty", "recovered", "agent_connected", "agent_disconnected"],
+          "enumItems": [
+            "became_faulty",
+            "recovered",
+            "agent_connected",
+            "agent_disconnected"
+          ],
           "mappedType": "enum"
         },
         "node_id": {
@@ -607,7 +815,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["at"],
+          "columnNames": [
+            "at"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "health_event_at_index",
@@ -615,7 +825,9 @@
           "unique": false
         },
         {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "health_event_node_id_index",
@@ -623,7 +835,9 @@
           "unique": false
         },
         {
-          "columnNames": ["id"],
+          "columnNames": [
+            "id"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -642,10 +856,14 @@
       "triggers": [],
       "foreignKeys": {
         "health_event_node_id_foreign": {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "constraintName": "health_event_node_id_foreign",
           "localTableName": "health_event",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "node",
           "deleteRule": "cascade"
         }
@@ -754,13 +972,18 @@
           "default": null,
           "comment": null,
           "collation": null,
-          "enumItems": ["present", "mismatch"],
+          "enumItems": [
+            "present",
+            "mismatch"
+          ],
           "mappedType": "enum"
         }
       },
       "indexes": [
         {
-          "columnNames": ["file_id"],
+          "columnNames": [
+            "file_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "holding_file_id_index",
@@ -768,7 +991,9 @@
           "unique": false
         },
         {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "holding_node_id_index",
@@ -776,7 +1001,10 @@
           "unique": false
         },
         {
-          "columnNames": ["node_id", "file_id"],
+          "columnNames": [
+            "node_id",
+            "file_id"
+          ],
           "composite": true,
           "constraint": true,
           "keyName": "primary",
@@ -795,19 +1023,27 @@
       "triggers": [],
       "foreignKeys": {
         "holding_file_id_foreign": {
-          "columnNames": ["file_id"],
+          "columnNames": [
+            "file_id"
+          ],
           "constraintName": "holding_file_id_foreign",
           "localTableName": "holding",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "release_file",
           "updateRule": "cascade",
           "deleteRule": "cascade"
         },
         "holding_node_id_foreign": {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "constraintName": "holding_node_id_foreign",
           "localTableName": "holding",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "node",
           "updateRule": "cascade",
           "deleteRule": "cascade"
@@ -1087,7 +1323,11 @@
           "default": "'unknown'",
           "comment": null,
           "collation": null,
-          "enumItems": ["online", "faulty", "unknown"],
+          "enumItems": [
+            "online",
+            "faulty",
+            "unknown"
+          ],
           "mappedType": "enum"
         },
         "storage_free_bytes": {
@@ -1206,7 +1446,10 @@
           "default": "'all'",
           "comment": null,
           "collation": null,
-          "enumItems": ["all", "allowlist"],
+          "enumItems": [
+            "all",
+            "allowlist"
+          ],
           "mappedType": "enum"
         },
         "weight": {
@@ -1229,7 +1472,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["domain"],
+          "columnNames": [
+            "domain"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "node_domain_unique",
@@ -1237,7 +1482,9 @@
           "unique": true
         },
         {
-          "columnNames": ["id"],
+          "columnNames": [
+            "id"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -1348,7 +1595,12 @@
           "default": null,
           "comment": null,
           "collation": null,
-          "enumItems": ["ingesting", "active", "retained", "deleting"],
+          "enumItems": [
+            "ingesting",
+            "active",
+            "retained",
+            "deleting"
+          ],
           "mappedType": "enum"
         },
         "variant_id": {
@@ -1405,7 +1657,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["id"],
+          "columnNames": [
+            "id"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -1413,7 +1667,9 @@
           "unique": true
         },
         {
-          "columnNames": ["variant_id"],
+          "columnNames": [
+            "variant_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "release_variant_id_index",
@@ -1421,7 +1677,10 @@
           "unique": false
         },
         {
-          "columnNames": ["variant_id", "version"],
+          "columnNames": [
+            "variant_id",
+            "version"
+          ],
           "composite": true,
           "constraint": true,
           "keyName": "release_variant_id_version_unique",
@@ -1440,10 +1699,14 @@
       "triggers": [],
       "foreignKeys": {
         "release_variant_id_foreign": {
-          "columnNames": ["variant_id"],
+          "columnNames": [
+            "variant_id"
+          ],
           "constraintName": "release_variant_id_foreign",
           "localTableName": "release",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "variant",
           "deleteRule": "cascade"
         }
@@ -1501,7 +1764,13 @@
           "default": null,
           "comment": null,
           "collation": null,
-          "enumItems": ["apk", "apks", "obb-main", "obb-patch", "other"],
+          "enumItems": [
+            "apk",
+            "apks",
+            "obb-main",
+            "obb-patch",
+            "other"
+          ],
           "mappedType": "enum"
         },
         "release_id": {
@@ -1558,7 +1827,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["id"],
+          "columnNames": [
+            "id"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -1566,7 +1837,10 @@
           "unique": true
         },
         {
-          "columnNames": ["release_id", "file_name"],
+          "columnNames": [
+            "release_id",
+            "file_name"
+          ],
           "composite": true,
           "constraint": true,
           "keyName": "release_file_release_id_file_name_unique",
@@ -1574,7 +1848,9 @@
           "unique": true
         },
         {
-          "columnNames": ["release_id"],
+          "columnNames": [
+            "release_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "release_file_release_id_index",
@@ -1593,10 +1869,14 @@
       "triggers": [],
       "foreignKeys": {
         "release_file_release_id_foreign": {
-          "columnNames": ["release_id"],
+          "columnNames": [
+            "release_id"
+          ],
           "constraintName": "release_file_release_id_foreign",
           "localTableName": "release_file",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "release",
           "deleteRule": "cascade"
         }
@@ -1705,7 +1985,13 @@
           "default": null,
           "comment": null,
           "collation": null,
-          "enumItems": ["fetched", "skipped_no_space", "failed_hash", "failed_network", "deleted"],
+          "enumItems": [
+            "fetched",
+            "skipped_no_space",
+            "failed_hash",
+            "failed_network",
+            "deleted"
+          ],
           "mappedType": "enum"
         },
         "package_name": {
@@ -1762,7 +2048,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["id"],
+          "columnNames": [
+            "id"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -1770,7 +2058,9 @@
           "unique": true
         },
         {
-          "columnNames": ["at"],
+          "columnNames": [
+            "at"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "sync_event_at_index",
@@ -1778,7 +2068,9 @@
           "unique": false
         },
         {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "sync_event_node_id_index",
@@ -1797,10 +2089,14 @@
       "triggers": [],
       "foreignKeys": {
         "sync_event_node_id_foreign": {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "constraintName": "sync_event_node_id_foreign",
           "localTableName": "sync_event",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "node",
           "deleteRule": "cascade"
         }
@@ -1898,7 +2194,10 @@
       },
       "indexes": [
         {
-          "columnNames": ["node_id", "hour_start"],
+          "columnNames": [
+            "node_id",
+            "hour_start"
+          ],
           "composite": true,
           "constraint": true,
           "keyName": "primary",
@@ -1906,7 +2205,9 @@
           "unique": true
         },
         {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "traffic_node_id_index",
@@ -1918,10 +2219,14 @@
       "triggers": [],
       "foreignKeys": {
         "traffic_node_id_foreign": {
-          "columnNames": ["node_id"],
+          "columnNames": [
+            "node_id"
+          ],
           "constraintName": "traffic_node_id_foreign",
           "localTableName": "traffic",
-          "referencedColumnNames": ["id"],
+          "referencedColumnNames": [
+            "id"
+          ],
           "referencedTableName": "node",
           "deleteRule": "cascade"
         }
@@ -2047,7 +2352,11 @@
           "default": null,
           "comment": null,
           "collation": null,
-          "enumItems": ["up_to_date", "updated", "failed"],
+          "enumItems": [
+            "up_to_date",
+            "updated",
+            "failed"
+          ],
           "mappedType": "enum"
         },
         "last_checked_at": {
@@ -2121,7 +2430,9 @@
       },
       "indexes": [
         {
-          "columnNames": ["id"],
+          "columnNames": [
+            "id"
+          ],
           "composite": false,
           "constraint": true,
           "keyName": "primary",
@@ -2129,7 +2440,9 @@
           "unique": true
         },
         {
-          "columnNames": ["app_package_name"],
+          "columnNames": [
+            "app_package_name"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "variant_app_package_name_index",
@@ -2137,7 +2450,10 @@
           "unique": false
         },
         {
-          "columnNames": ["app_package_name", "slug"],
+          "columnNames": [
+            "app_package_name",
+            "slug"
+          ],
           "composite": true,
           "constraint": true,
           "keyName": "variant_app_package_name_slug_unique",
@@ -2156,10 +2472,14 @@
       "triggers": [],
       "foreignKeys": {
         "variant_app_package_name_foreign": {
-          "columnNames": ["app_package_name"],
+          "columnNames": [
+            "app_package_name"
+          ],
           "constraintName": "variant_app_package_name_foreign",
           "localTableName": "variant",
-          "referencedColumnNames": ["package_name"],
+          "referencedColumnNames": [
+            "package_name"
+          ],
           "referencedTableName": "app",
           "deleteRule": "cascade"
         }

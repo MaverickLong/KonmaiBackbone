@@ -136,6 +136,14 @@ export const trafficStatsQuery = dateRange.extend({
   nodeId: z.coerce.number().int().positive().optional(),
   resolution: z.enum(['hour', 'day']).default('day'),
 });
+export const addressGroupings = ['address', 'network'] as const;
+export const addressStatsQuery = dateRange.extend({
+  nodeId: z.coerce.number().int().positive().optional(),
+  groupBy: z.enum(addressGroupings).default('network'),
+  // Restricts the result to one network, e.g. to list the addresses behind a network row.
+  network: z.string().min(1).max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
+});
 export const eventsQuery = z.object({
   kind: z.enum(['health', 'sync']).optional(),
   nodeId: z.coerce.number().int().positive().optional(),

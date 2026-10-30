@@ -74,7 +74,10 @@ installed for the `konmai` user), `yarn` 1, and on the host additionally `uv` an
    ```
 
 3. nginx: copy `deploy/nginx/node.conf`, set `server_name`, certificates and the files path. Keep
-   the `access_log syslog:...` line: it is how bandwidth is measured.
+   the `konmai_json` log format and both `access_log syslog:...` lines: every byte they report
+   counts toward the node's bandwidth, whatever the path or status, and the `ip` field feeds the
+   dashboard's "Traffic by IP" statistics. Nodes set up with an older `node.conf` keep counting
+   bandwidth but report no addresses until their `log_format` includes `"ip":"$remote_addr"`.
 4. `systemctl enable --now konmai-node`. Within a few seconds the dashboard shows the agent
    connected; within five minutes the probe marks the node online and the first files arrive.
 

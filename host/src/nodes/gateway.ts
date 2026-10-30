@@ -228,7 +228,12 @@ export class Gateway {
           break;
         }
         case 'traffic': {
-          const hourStarts = await applyTraffic(em, node, message.payload.buckets);
+          const hourStarts = await applyTraffic(
+            em,
+            node,
+            message.payload.buckets,
+            message.payload.addresses,
+          );
           this.send(connection, {
             type: 'ack',
             id: randomUUID(),

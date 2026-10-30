@@ -117,6 +117,21 @@ export const Traffic = defineEntity({
 });
 export type Traffic = InferEntity<typeof Traffic>;
 
+// Per-day traffic of one client address on one node. `network` is the address's /24 (IPv4) or
+// /48 (IPv6), stored so the dashboard can group a bot network spread over many addresses.
+export const AddressTraffic = defineEntity({
+  name: 'AddressTraffic',
+  properties: {
+    node: () => p.manyToOne(Node).primary().deleteRule('cascade'),
+    day: p.string().primary().index(),
+    address: p.string().primary(),
+    network: p.string().index(),
+    egressBytes: p.integer(),
+    requests: p.integer(),
+  },
+});
+export type AddressTraffic = InferEntity<typeof AddressTraffic>;
+
 export const HealthEvent = defineEntity({
   name: 'HealthEvent',
   properties: {
@@ -192,6 +207,7 @@ export const entities = [
   Node,
   Holding,
   Traffic,
+  AddressTraffic,
   HealthEvent,
   SyncEvent,
   Download,

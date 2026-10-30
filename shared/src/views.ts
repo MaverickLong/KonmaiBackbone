@@ -180,6 +180,22 @@ export interface DownloadStatsRow {
   count: number;
 }
 
+// One client address, or one network (IPv4 /24, IPv6 /48) when grouped that way.
+export interface AddressStatsRow {
+  key: string;
+  egressBytes: number;
+  requests: number;
+  addresses: number;
+  nodes: number;
+}
+
+export interface AddressStatsView {
+  egressBytes: number;
+  requests: number;
+  distinctKeys: number;
+  rows: AddressStatsRow[];
+}
+
 export interface TrafficStatsRow {
   nodeId: number;
   start: string;

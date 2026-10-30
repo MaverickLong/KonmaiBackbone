@@ -1,9 +1,9 @@
 import { Cron } from 'croner';
 import { deleteMarkedReleases } from '../catalogue/lifecycle.js';
-import { Download, DownloadSummary, Release, Traffic } from '../db/entities.js';
+import { AddressTraffic, Download, DownloadSummary, Release, Traffic } from '../db/entities.js';
 import type { EntityManager } from '../db/orm.js';
 import type { Context } from '../http/context.js';
-import { rawDownloadRetentionDays } from '../http/admin/stats.js';
+import { addressRetentionDays, dayOf, rawDownloadRetentionDays } from '../http/admin/stats.js';
 
 const dayMilliseconds = 86_400_000;
 const trafficRetentionDays = 400;
@@ -44,6 +44,9 @@ export async function rollUpDownloads(em: EntityManager, now = new Date()): Prom
   await em.nativeDelete(Download, { at: { $lt: cutoff } });
   await em.nativeDelete(Traffic, {
     hourStart: { $lt: new Date(now.getTime() - trafficRetentionDays * dayMilliseconds) },
+  });
+  await em.nativeDelete(AddressTraffic, {
+    day: { $lt: dayOf(new Date(now.getTime() - addressRetentionDays * dayMilliseconds)) },
   });
   return counts.size;
 }

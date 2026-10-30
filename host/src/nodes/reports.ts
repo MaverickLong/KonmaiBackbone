@@ -3,9 +3,11 @@ import {
   type InventoryFile,
   type NodeMessage,
   type StorageReport,
+  type AddressBucket,
   type TrafficBucket,
 } from 'konmai-shared';
-import { Holding, Node, ReleaseFile, SyncEvent, Traffic } from '../db/entities.js';
+import { AddressTraffic, Holding, Node, ReleaseFile, SyncEvent, Traffic } from '../db/entities.js';
+import { networkOf } from '../stats/network.js';
 import type { EntityManager } from '../db/orm.js';
 
 export async function applyStorage(
@@ -81,7 +83,21 @@ export async function applyTraffic(
   em: EntityManager,
   node: Node,
   buckets: TrafficBucket[],
+  addresses: AddressBucket[],
 ): Promise<string[]> {
+  if (addresses.length > 0) {
+    await em.upsertMany(
+      AddressTraffic,
+      addresses.map((bucket) => ({
+        node: node.id,
+        day: bucket.day,
+        address: bucket.address,
+        network: networkOf(bucket.address),
+        egressBytes: bucket.egressBytes,
+        requests: bucket.requests,
+      })),
+    );
+  }
   if (buckets.length > 0) {
     await em.upsertMany(
       Traffic,
