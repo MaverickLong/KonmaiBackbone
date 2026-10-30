@@ -9,7 +9,6 @@
     "timezone": "Asia/Tokyo"
   },
   "githubToken": null,
-  "dailyAt": "03:00",
   "pollSeconds": 30,
   "logLevel": "INFO"
 }

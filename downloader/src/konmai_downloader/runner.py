@@ -39,12 +39,12 @@ class Runner:
         self.host = host
         self.context = SourceContext(config, Credentials(config.credentials_file))
 
-    def run_pass(self, only_requested: bool = False) -> PassSummary:
+    def run_pass(self, tasks: list[VariantTask] | None = None) -> PassSummary:
+        """Checks the given variants, or every enabled variant when none are given."""
         started_at = now_iso()
         summary = PassSummary()
-        tasks = self.host.variants()
-        if only_requested:
-            tasks = [task for task in tasks if task.check_requested]
+        if tasks is None:
+            tasks = self.host.variants()
         for task in tasks:
             self.process(task, summary)
         self.host.heartbeat(

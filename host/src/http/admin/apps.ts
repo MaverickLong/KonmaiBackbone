@@ -141,6 +141,7 @@ export function appsRouter(context: Context): Router {
       name: body.name,
       source: body.source,
       enabled: body.enabled,
+      checkIntervalMinutes: body.checkIntervalMinutes,
       checkRequestedAt: new Date(),
       lastCheckedAt: null,
       lastCheckStatus: null,

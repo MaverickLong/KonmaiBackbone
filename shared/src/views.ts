@@ -42,6 +42,9 @@ export interface VariantView {
   name: string;
   source: Source;
   enabled: boolean;
+  checkIntervalMinutes: number;
+  // When the downloader will next look for a release; null until the first check.
+  nextCheckAt: string | null;
   checkRequestedAt: string | null;
   lastCheckedAt: string | null;
   lastCheckStatus: CheckStatus | null;

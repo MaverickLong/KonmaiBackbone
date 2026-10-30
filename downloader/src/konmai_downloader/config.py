@@ -45,7 +45,9 @@ class Config(CamelModel):
     credentials_file: Path
     google: GoogleConfig | None = None
     github_token: str | None = None
-    daily_at: str = Field(default="03:00", pattern=r"^\d{2}:\d{2}$")
+    # Replaced by per-variant check intervals set in the dashboard; still accepted so older
+    # config files load, but ignored.
+    daily_at: str | None = None
     poll_seconds: int = Field(default=30, ge=5)
     log_level: str = "INFO"
 

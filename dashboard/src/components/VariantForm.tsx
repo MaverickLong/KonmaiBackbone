@@ -1,18 +1,30 @@
-import { Button, Group, Select, Stack, Switch, TagsInput, TextInput } from '@mantine/core';
+import {
+  Button,
+  Group,
+  NumberInput,
+  Select,
+  Stack,
+  Switch,
+  TagsInput,
+  TextInput,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
+  maximumCheckIntervalMinutes,
+  minimumCheckIntervalMinutes,
   sourceTypes,
   variantCreate,
   variantUpdate,
   type Source,
   type VariantView,
 } from 'konmai-shared';
-import { zodErrors } from '../format';
+import { formatInterval, zodErrors } from '../format';
 
 interface VariantFormValues {
   slug: string;
   name: string;
   enabled: boolean;
+  checkIntervalMinutes: number;
   type: Source['type'];
   packageName: string;
   devices: string[];
@@ -29,6 +41,7 @@ function valuesFrom(variant?: VariantView): VariantFormValues {
     slug: variant?.slug ?? '',
     name: variant?.name ?? '',
     enabled: variant?.enabled ?? true,
+    checkIntervalMinutes: variant?.checkIntervalMinutes ?? maximumCheckIntervalMinutes,
     type: (source['type'] as Source['type']) ?? 'googleplay',
     packageName: String(source['packageName'] ?? ''),
     devices: Array.isArray(source['devices']) ? (source['devices'] as string[]) : [],
@@ -103,6 +116,7 @@ export function VariantForm({
         slug: values.slug,
         name: values.name,
         enabled: values.enabled,
+        checkIntervalMinutes: values.checkIntervalMinutes,
         source: toSource(values, original),
       };
       const result = (creating ? variantCreate : variantUpdate).safeParse(payload);
@@ -116,6 +130,7 @@ export function VariantForm({
           ...(creating ? { slug: values.slug } : {}),
           name: values.name,
           enabled: values.enabled,
+          checkIntervalMinutes: values.checkIntervalMinutes,
           source: toSource(values, original),
         }),
       )}
@@ -137,6 +152,15 @@ export function VariantForm({
           {...form.getInputProps('name')}
         />
         <Switch label="Enabled" {...form.getInputProps('enabled', { type: 'checkbox' })} />
+        <NumberInput
+          label="Check for updates every (minutes)"
+          description={`From ${minimumCheckIntervalMinutes} minutes to ${maximumCheckIntervalMinutes} (one day); currently ${formatInterval(form.values.checkIntervalMinutes)}`}
+          min={minimumCheckIntervalMinutes}
+          max={maximumCheckIntervalMinutes}
+          step={5}
+          allowDecimal={false}
+          {...form.getInputProps('checkIntervalMinutes')}
+        />
         <Select
           label="Source"
           data={sourceTypes.map((type) => ({ value: type, label: type }))}

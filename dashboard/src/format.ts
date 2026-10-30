@@ -15,6 +15,18 @@ export function formatRelative(value: string | null | undefined): string {
   return value ? dayjs(value).fromNow() : 'never';
 }
 
+export function formatInterval(minutes: number): string {
+  if (minutes >= 1440 && minutes % 1440 === 0) {
+    return minutes === 1440 ? '1 day' : `${minutes / 1440} days`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) {
+    return `${rest} min`;
+  }
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+}
+
 export function formatCountry(code: string): string {
   try {
     return `${code} · ${new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code}`;

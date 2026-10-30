@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { checkResult, downloaderHeartbeat, ingestRelease } from 'konmai-shared';
+import { isCheckDue } from '../catalogue/checks.js';
 import { publishRelease } from '../catalogue/lifecycle.js';
 import { DownloaderState, Release, Variant } from '../db/entities.js';
 import type { EntityManager } from '../db/orm.js';
@@ -32,6 +33,7 @@ export function ingestRouter(context: Context): Router {
   router.use(requireToken(context.config.ingestToken));
 
   router.get('/variants', async (_request, response) => {
+    const now = new Date();
     const variants = await em().find(
       Variant,
       { enabled: true },
@@ -57,6 +59,7 @@ export function ingestRouter(context: Context): Router {
               : { version: release.version, versionCode: release.versionCode ?? null },
           checkRequested:
             variant.checkRequestedAt !== null && variant.checkRequestedAt !== undefined,
+          checkDue: isCheckDue(variant, now),
         };
       }),
     );

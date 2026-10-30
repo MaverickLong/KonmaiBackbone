@@ -40,16 +40,27 @@ export const appCreate = z.object({
 });
 export const appUpdate = z.object({ displayName: z.string().trim().min(1).max(200) });
 
+// How often the downloader looks for a new release: from every 5 minutes to once a day.
+export const minimumCheckIntervalMinutes = 5;
+export const maximumCheckIntervalMinutes = 1440;
+const checkIntervalMinutes = z
+  .number()
+  .int()
+  .min(minimumCheckIntervalMinutes)
+  .max(maximumCheckIntervalMinutes);
+
 export const variantCreate = z.object({
   slug,
   name: z.string().trim().min(1).max(200),
   source,
   enabled: z.boolean().default(true),
+  checkIntervalMinutes: checkIntervalMinutes.default(maximumCheckIntervalMinutes),
 });
 export const variantUpdate = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   source: source.optional(),
   enabled: z.boolean().optional(),
+  checkIntervalMinutes: checkIntervalMinutes.optional(),
 });
 
 export const variantSelections = ['all', 'allowlist'] as const;

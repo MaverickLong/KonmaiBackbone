@@ -25,7 +25,7 @@ class VariantTask:
     source: dict[str, Any]
     active_version: str | None
     active_version_code: int | None
-    check_requested: bool
+    check_due: bool
 
 
 class HostError(Exception):
@@ -74,7 +74,7 @@ class HostClient:
                     source=entry["source"],
                     active_version=None if active is None else active["version"],
                     active_version_code=None if active is None else active.get("versionCode"),
-                    check_requested=bool(entry.get("checkRequested")),
+                    check_due=bool(entry.get("checkDue")),
                 )
             )
         return tasks

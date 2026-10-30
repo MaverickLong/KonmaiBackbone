@@ -28,7 +28,7 @@ def variant_list(active=None):
             "name": "GitHub",
             "source": {"type": "github", "repository": "o/n", "assetPattern": "\\.apk$"},
             "activeRelease": active,
-            "checkRequested": True,
+            "checkDue": True,
         }
     ]
 

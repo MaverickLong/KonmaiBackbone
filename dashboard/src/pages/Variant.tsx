@@ -25,7 +25,7 @@ import {
 } from '../api/hooks';
 import { VariantForm } from '../components/VariantForm';
 import { ConfirmButton, Loading } from '../components/common';
-import { formatBytes, formatDate, formatRelative } from '../format';
+import { formatBytes, formatDate, formatInterval, formatRelative } from '../format';
 
 export function VariantPage() {
   const id = Number(useParams().id);
@@ -79,7 +79,12 @@ export function VariantPage() {
       </Group>
       <Text size="sm">
         Last check: {data.lastCheckStatus ?? 'never'} · {formatRelative(data.lastCheckedAt)}
-        {data.checkRequestedAt ? ' · check pending' : ''}
+        {' · '}checked every {formatInterval(data.checkIntervalMinutes)}
+        {data.checkRequestedAt
+          ? ' · check pending'
+          : data.nextCheckAt
+            ? ` · next ${formatRelative(data.nextCheckAt)}`
+            : ''}
         {data.lastCheckError ? (
           <Text span c="red">
             {' '}

@@ -19,6 +19,7 @@ import type {
   SyncEvent,
   Variant,
 } from './db/entities.js';
+import { nextCheckAt } from './catalogue/checks.js';
 import { downloadUrl, iconUrl } from './urls.js';
 
 function iso(value: Date | null | undefined): string | null {
@@ -33,6 +34,8 @@ export function variantView(variant: Variant, activeRelease: Release | null): Va
     name: variant.name,
     source: variant.source,
     enabled: variant.enabled,
+    checkIntervalMinutes: variant.checkIntervalMinutes,
+    nextCheckAt: iso(nextCheckAt(variant)),
     checkRequestedAt: iso(variant.checkRequestedAt),
     lastCheckedAt: iso(variant.lastCheckedAt),
     lastCheckStatus: variant.lastCheckStatus ?? null,

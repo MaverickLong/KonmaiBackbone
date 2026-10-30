@@ -120,8 +120,10 @@ device to prove the session works. Run it again only if Google revokes the maste
 example after a password change. A `google.password` is still accepted as a fallback for
 accounts where Google allows it, but it is not needed.
 
-`systemctl enable --now konmai-downloader` runs the daily loop; the dashboard's **Check now**
-buttons are picked up within `pollSeconds`. One-off runs:
+`systemctl enable --now konmai-downloader` starts the loop. Every `pollSeconds` it asks the
+host which variants are due and checks only those. Each variant's interval is set in the
+dashboard, from every 5 minutes to once a day (the default); **Check now** makes a variant due
+immediately. The old `dailyAt` setting is ignored. One-off runs:
 
 ```sh
 uv run konmai-downloader --config /etc/konmai/downloader.json run --once

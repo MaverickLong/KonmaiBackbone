@@ -86,6 +86,9 @@ export function variantsRouter(context: Context): Router {
     if (body.enabled !== undefined) {
       variant.enabled = body.enabled;
     }
+    if (body.checkIntervalMinutes !== undefined) {
+      variant.checkIntervalMinutes = body.checkIntervalMinutes;
+    }
     await em().flush();
     catalogueEvents.emit('changed');
     response.json(await variantDetail(context, em(), variant));

@@ -27,7 +27,7 @@ import {
 } from '../api/hooks';
 import { VariantForm } from '../components/VariantForm';
 import { ConfirmButton, Loading } from '../components/common';
-import { formatBytes, formatRelative } from '../format';
+import { formatBytes, formatInterval, formatRelative } from '../format';
 
 export function AppDetailPage() {
   const packageName = decodeURIComponent(useParams().packageName ?? '');
@@ -148,6 +148,7 @@ export function AppDetailPage() {
               <Table.Td>
                 <Text size="sm">
                   {variant.lastCheckStatus ?? 'never'} · {formatRelative(variant.lastCheckedAt)}
+                  {' · '}every {formatInterval(variant.checkIntervalMinutes)}
                   {variant.checkRequestedAt ? ' · check pending' : ''}
                 </Text>
                 {variant.lastCheckError ? (

@@ -21,6 +21,7 @@ export const Variant = defineEntity({
     name: p.string(),
     source: p.json<Source>(),
     enabled: p.boolean().default(true),
+    checkIntervalMinutes: p.integer().default(1440),
     checkRequestedAt: p.datetime().nullable(),
     lastCheckedAt: p.datetime().nullable(),
     lastCheckStatus: p.enum(['up_to_date', 'updated', 'failed']).nullable(),
