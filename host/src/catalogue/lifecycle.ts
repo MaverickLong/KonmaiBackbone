@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { IngestRelease } from 'konmai-shared';
+import type { IngestRelease, ReleaseState } from 'konmai-shared';
 import type { EntityManager } from '../db/orm.js';
 import { Release, ReleaseFile, Variant } from '../db/entities.js';
 import { conflict, HttpError, notFound } from '../http/errors.js';
@@ -11,6 +11,26 @@ export const retainedReleases = 2;
 // Emits 'changed' whenever the set of servable releases changes; the node gateway listens and
 // pushes a fresh manifest to every connected node.
 export const catalogueEvents = new EventEmitter<{ changed: [] }>();
+
+// Every state change of a release goes through here, so the whole lifecycle reads in one place:
+// ingesting → active → retained → deleting → removed, retained → active when the newer release
+// is removed by hand, and ingesting → deleting when an ingest never finished.
+const nextStates: Record<ReleaseState, readonly ReleaseState[]> = {
+  ingesting: ['active', 'deleting'],
+  active: ['retained', 'deleting'],
+  retained: ['active', 'deleting'],
+  deleting: [],
+};
+
+export function moveRelease(release: Release, next: ReleaseState): void {
+  if (!nextStates[release.state].includes(next)) {
+    throw new Error(`release ${release.id} cannot move from ${release.state} to ${next}`);
+  }
+  release.state = next;
+  if (next === 'active' && !release.activatedAt) {
+    release.activatedAt = new Date();
+  }
+}
 
 export async function publishRelease(
   em: EntityManager,
@@ -94,15 +114,14 @@ export async function publishRelease(
       { variant, state: { $in: ['active', 'retained'] } },
       { orderBy: { createdAt: 'desc', id: 'desc' } },
     );
-    for (const previous of releases) {
-      previous.state = 'deleting';
+    const [previousActive, ...older] = releases;
+    for (const previous of older) {
+      moveRelease(previous, 'deleting');
     }
-    const [previousActive] = releases;
-    if (previousActive !== undefined) {
-      previousActive.state = 'retained';
+    if (previousActive?.state === 'active') {
+      moveRelease(previousActive, 'retained');
     }
-    release.state = 'active';
-    release.activatedAt = new Date();
+    moveRelease(release, 'active');
   });
 
   await deleteMarkedReleases(em, store, logger);
@@ -120,7 +139,9 @@ export async function removeRelease(
   logger: Logger,
   release: Release,
 ): Promise<void> {
-  release.state = 'deleting';
+  if (release.state !== 'deleting') {
+    moveRelease(release, 'deleting');
+  }
   await em.flush();
   await deleteMarkedReleases(em, store, logger);
   await promoteRetained(em, release.variant.id);
@@ -138,7 +159,7 @@ async function promoteRetained(em: EntityManager, variantId: number): Promise<vo
     { orderBy: { createdAt: 'desc', id: 'desc' } },
   );
   if (newest !== null) {
-    newest.state = 'active';
+    moveRelease(newest, 'active');
     await em.flush();
   }
 }

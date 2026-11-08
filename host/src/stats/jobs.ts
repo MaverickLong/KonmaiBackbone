@@ -1,5 +1,5 @@
 import { Cron } from 'croner';
-import { deleteMarkedReleases } from '../catalogue/lifecycle.js';
+import { deleteMarkedReleases, moveRelease } from '../catalogue/lifecycle.js';
 import { AddressTraffic, Download, DownloadSummary, Release, Traffic } from '../db/entities.js';
 import type { EntityManager } from '../db/orm.js';
 import type { Context } from '../http/context.js';
@@ -58,7 +58,7 @@ export async function sweepOrphans(context: Context, em: EntityManager): Promise
     createdAt: { $lt: new Date(Date.now() - ingestTimeoutMilliseconds) },
   });
   for (const release of stuck) {
-    release.state = 'deleting';
+    moveRelease(release, 'deleting');
   }
   await em.flush();
   await deleteMarkedReleases(em, context.store, context.logger);
