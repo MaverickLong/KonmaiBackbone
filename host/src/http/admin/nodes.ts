@@ -37,6 +37,7 @@ export async function nodeViews(
   context: Context,
   em: EntityManager,
   nodes: Node[],
+  connected: ReadonlySet<number>,
 ): Promise<NodeView[]> {
   const now = new Date();
   const ids = nodes.map((node) => node.id);
@@ -62,6 +63,7 @@ export async function nodeViews(
       node.usageAdjustmentPeriodStart !== undefined &&
       node.usageAdjustmentPeriodStart.getTime() === period.start.getTime();
     return nodeView(node, {
+      agentConnected: connected.has(node.id),
       heldFiles: held.length,
       heldBytes: held.reduce((sum, holding) => sum + holding.sizeBytes, 0),
       quota: quotaView({
@@ -102,13 +104,21 @@ export interface NodeActions {
   disconnect(node: Node): void;
 }
 
-export function nodesRouter(context: Context, actions: NodeActions): Router {
+export interface NodeDependencies {
+  nodeActions: NodeActions;
+  connectedNodeIds(): number[];
+}
+
+export function nodesRouter(context: Context, dependencies: NodeDependencies): Router {
   const router = Router();
   const em = () => context.orm.em;
+  const actions = dependencies.nodeActions;
+  const views = (nodes: Node[]) =>
+    nodeViews(context, em(), nodes, new Set(dependencies.connectedNodeIds()));
 
   router.get('/', async (_request, response) => {
     const nodes = await em().find(Node, {}, { orderBy: { name: 'asc' } });
-    response.json(await nodeViews(context, em(), nodes));
+    response.json(await views(nodes));
   });
 
   router.post('/', async (request, response) => {
@@ -120,7 +130,6 @@ export function nodesRouter(context: Context, actions: NodeActions): Router {
     const node = em().create(Node, {
       ...body,
       status: 'unknown',
-      agentConnected: false,
       agentVersion: null,
       lastHealthyAt: null,
       lastFailureAt: null,
@@ -132,7 +141,7 @@ export function nodesRouter(context: Context, actions: NodeActions): Router {
     });
     await em().flush();
     const created: NodeCreatedView = {
-      node: (await nodeViews(context, em(), [node]))[0]!,
+      node: (await views([node]))[0]!,
       token,
       config: nodeConfigSnippet(context, node, token),
     };
@@ -141,7 +150,7 @@ export function nodesRouter(context: Context, actions: NodeActions): Router {
 
   router.get('/:id', async (request, response) => {
     const node = await loadNode(em(), request.params.id);
-    const [view] = await nodeViews(context, em(), [node]);
+    const [view] = await views([node]);
     const holdings = await em().find(
       Holding,
       { node },
@@ -186,7 +195,7 @@ export function nodesRouter(context: Context, actions: NodeActions): Router {
       actions.disconnect(node);
     }
     await em().flush();
-    response.json((await nodeViews(context, em(), [node]))[0]);
+    response.json((await views([node]))[0]);
   });
 
   router.delete('/:id', async (request, response) => {
@@ -204,7 +213,7 @@ export function nodesRouter(context: Context, actions: NodeActions): Router {
     await em().flush();
     actions.disconnect(node);
     const created: NodeCreatedView = {
-      node: (await nodeViews(context, em(), [node]))[0]!,
+      node: (await views([node]))[0]!,
       token,
       config: nodeConfigSnippet(context, node, token),
     };
@@ -215,7 +224,7 @@ export function nodesRouter(context: Context, actions: NodeActions): Router {
     const node = await loadNode(em(), request.params.id);
     await actions.probe(node);
     const refreshed = await loadNode(em(), node.id);
-    response.json((await nodeViews(context, em(), [refreshed]))[0]);
+    response.json((await views([refreshed]))[0]);
   });
 
   router.post('/:id/resync', async (request, response) => {

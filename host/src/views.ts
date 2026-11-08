@@ -106,6 +106,7 @@ export function releaseView(
 }
 
 export interface NodeSummary {
+  agentConnected: boolean;
   heldFiles: number;
   heldBytes: number;
   quota: QuotaView;
@@ -121,7 +122,7 @@ export function nodeView(node: Node, summary: NodeSummary): NodeView {
     weight: node.weight,
     enabled: node.enabled,
     status: node.status,
-    agentConnected: node.agentConnected,
+    agentConnected: summary.agentConnected,
     agentVersion: node.agentVersion ?? null,
     lastHealthyAt: iso(node.lastHealthyAt),
     lastFailureAt: iso(node.lastFailureAt),

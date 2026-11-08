@@ -27,6 +27,7 @@ async function main(): Promise<void> {
 
   const server = createServer();
   const gateway = new Gateway(context, server);
+  await gateway.recordMissedDisconnects();
   const prober = new Prober(context, alerts, {
     agentConnected: (nodeId) => gateway.isConnected(nodeId),
     statusChanged: () => routable.invalidate(),
