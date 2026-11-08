@@ -8,9 +8,9 @@ import {
   type NodeView,
 } from 'konmai-shared';
 import { z } from 'zod';
-import { HealthEvent, Holding, Node, SyncEvent, Traffic } from '../../db/entities.js';
+import { HealthEvent, Holding, Node, SyncEvent } from '../../db/entities.js';
 import type { EntityManager } from '../../db/orm.js';
-import { billingPeriod, quotaView } from '../../nodes/quota.js';
+import { billingPeriod, periodUsage, quotaView } from '../../nodes/quota.js';
 import { healthEventView, holdingView, nodeView, syncEventView } from '../../views.js';
 import type { Context } from '../context.js';
 import { conflict, notFound, parse } from '../errors.js';
@@ -39,44 +39,36 @@ export async function nodeViews(
   nodes: Node[],
   connected: ReadonlySet<number>,
 ): Promise<NodeView[]> {
+  if (nodes.length === 0) {
+    return [];
+  }
   const now = new Date();
-  const ids = nodes.map((node) => node.id);
-  const holdings = await em.find(Holding, { node: { $in: ids }, state: 'present' });
-  const earliestStart = nodes
-    .map((node) => billingPeriod(node.quotaResetDay, node.timezone, now).start)
-    .reduce((earliest, start) => (start < earliest ? start : earliest), now);
-  const traffic = await em.find(Traffic, {
-    node: { $in: ids },
-    hourStart: { $gte: earliestStart },
-  });
-  return nodes.map((node) => {
-    const period = billingPeriod(node.quotaResetDay, node.timezone, now);
-    const buckets = traffic.filter(
-      (bucket) =>
-        bucket.node.id === node.id &&
-        bucket.hourStart >= period.start &&
-        bucket.hourStart < period.end,
-    );
-    const held = holdings.filter((holding) => holding.node.id === node.id);
-    const adjustmentApplies =
-      node.usageAdjustmentPeriodStart !== null &&
-      node.usageAdjustmentPeriodStart !== undefined &&
-      node.usageAdjustmentPeriodStart.getTime() === period.start.getTime();
-    return nodeView(node, {
-      agentConnected: connected.has(node.id),
-      heldFiles: held.length,
-      heldBytes: held.reduce((sum, holding) => sum + holding.sizeBytes, 0),
-      quota: quotaView({
-        quotaBytes: node.monthlyQuotaBytes,
-        egressBytes: buckets.reduce((sum, bucket) => sum + bucket.egressBytes, 0),
-        ingressBytes: buckets.reduce((sum, bucket) => sum + bucket.ingressBytes, 0),
-        adjustmentBytes: adjustmentApplies ? node.usageAdjustmentBytes : 0,
-        safetyFraction: context.config.quotaSafetyFraction,
-        period,
-        now,
-      }),
-    });
-  });
+  const held = new Map(
+    (
+      await em.execute<{ node_id: number; files: number; bytes: number | null }[]>(
+        `select node_id, count(*) as files, sum(size_bytes) as bytes from holding
+         where state = 'present' and node_id in (${nodes.map(() => '?').join(', ')})
+         group by node_id`,
+        nodes.map((node) => node.id),
+      )
+    ).map((row) => [row.node_id, row]),
+  );
+  return Promise.all(
+    nodes.map(async (node) => {
+      const usage = await periodUsage(em, node, now);
+      return nodeView(node, {
+        agentConnected: connected.has(node.id),
+        heldFiles: Number(held.get(node.id)?.files ?? 0),
+        heldBytes: Number(held.get(node.id)?.bytes ?? 0),
+        quota: quotaView({
+          quotaBytes: node.monthlyQuotaBytes,
+          ...usage,
+          safetyFraction: context.config.quotaSafetyFraction,
+          now,
+        }),
+      });
+    }),
+  );
 }
 
 export function nodeConfigSnippet(

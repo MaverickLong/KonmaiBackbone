@@ -1,4 +1,6 @@
 import type { QuotaView } from 'konmai-shared';
+import type { Node } from '../db/entities.js';
+import type { EntityManager } from '../db/orm.js';
 
 export interface BillingPeriod {
   start: Date;
@@ -82,6 +84,31 @@ export function billingPeriod(resetDay: number, timezone: string, now: Date): Bi
       ? { year: local.year - 1, month: 12 }
       : { year: local.year, month: local.month - 1 };
   return { start: resetInstant(previous.year, previous.month, resetDay, timezone), end: thisMonth };
+}
+
+export interface PeriodUsage {
+  period: BillingPeriod;
+  egressBytes: number;
+  ingressBytes: number;
+  adjustmentBytes: number;
+}
+
+// What a node has used in its current billing period, counted the same way for the dashboard and
+// for routing: the traffic buckets inside the period plus a manual adjustment stamped for it.
+export async function periodUsage(em: EntityManager, node: Node, now: Date): Promise<PeriodUsage> {
+  const period = billingPeriod(node.quotaResetDay, node.timezone, now);
+  const [sums] = await em.execute<{ egress: number | null; ingress: number | null }[]>(
+    `select sum(egress_bytes) as egress, sum(ingress_bytes) as ingress from traffic
+     where node_id = ? and hour_start >= ? and hour_start < ?`,
+    [node.id, period.start, period.end],
+  );
+  const adjustmentApplies = node.usageAdjustmentPeriodStart?.getTime() === period.start.getTime();
+  return {
+    period,
+    egressBytes: Number(sums?.egress ?? 0),
+    ingressBytes: Number(sums?.ingress ?? 0),
+    adjustmentBytes: adjustmentApplies ? node.usageAdjustmentBytes : 0,
+  };
 }
 
 export interface QuotaInput {
