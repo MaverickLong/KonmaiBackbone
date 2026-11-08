@@ -47,6 +47,7 @@ async function main(): Promise<void> {
         gateway.disconnect(node.id);
         routable.invalidate();
       },
+      settingsChanged: () => routable.invalidate(),
     },
   });
   server.on('request', app);

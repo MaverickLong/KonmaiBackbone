@@ -102,6 +102,7 @@ export interface NodeActions {
   probe(node: Node): Promise<void>;
   resync(node: Node): Promise<boolean>;
   disconnect(node: Node): void;
+  settingsChanged(node: Node): void;
 }
 
 export interface NodeDependencies {
@@ -190,11 +191,22 @@ export function nodesRouter(context: Context, dependencies: NodeDependencies): R
         new Date(),
       ).start;
     }
+    const enabling = body.enabled === true && !node.enabled;
     Object.assign(node, body);
+    if (enabling) {
+      // Nothing probed the node while it was disabled, so its last status says nothing now.
+      node.status = 'unknown';
+    }
     if (body.enabled === false) {
       actions.disconnect(node);
     }
     await em().flush();
+    actions.settingsChanged(node);
+    if (enabling) {
+      actions.probe(node).catch((error: unknown) => {
+        context.logger.warn({ error, nodeId: node.id }, 'probe after enabling failed');
+      });
+    }
     response.json((await views([node]))[0]);
   });
 

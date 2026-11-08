@@ -1,3 +1,4 @@
+import type { NodeStatus } from 'konmai-shared';
 import type { Alerts } from '../alerts/email.js';
 import { HealthEvent, Node } from '../db/entities.js';
 import type { EntityManager } from '../db/orm.js';
@@ -16,6 +17,20 @@ export interface ProberHooks {
 export interface ProbeResult {
   healthy: boolean;
   reason: string | null;
+}
+
+export interface HealthChange {
+  status: NodeStatus;
+  event: 'became_faulty' | 'recovered' | null;
+}
+
+// unknown → online silently, online ⇄ faulty with an event each way. Nothing goes back to
+// unknown except an administrator re-enabling the node.
+export function nextHealth(status: NodeStatus, healthy: boolean): HealthChange {
+  if (healthy) {
+    return { status: 'online', event: status === 'faulty' ? 'recovered' : null };
+  }
+  return { status: 'faulty', event: status === 'faulty' ? null : 'became_faulty' };
 }
 
 export async function probeOnce(
@@ -101,31 +116,28 @@ export class Prober {
     const result = await probeOnce(node.domain, node.id);
     const now = new Date();
     const statusBefore = node.status;
+    const change = nextHealth(node.status, result.healthy);
     if (result.healthy) {
       node.lastHealthyAt = now;
-      if (node.status === 'faulty') {
-        node.status = 'online';
-        await this.transition(
-          em,
-          node,
-          'recovered',
-          `node ${node.name} (${node.domain}) is serving again`,
-        );
-      } else if (node.status === 'unknown') {
-        node.status = 'online';
-      }
     } else {
       node.lastFailureAt = now;
       node.lastFailureReason = result.reason;
-      if (node.status !== 'faulty') {
-        node.status = 'faulty';
-        await this.transition(
-          em,
-          node,
-          'became_faulty',
-          `node ${node.name} (${node.domain}) failed ${attempts} probes: ${result.reason}`,
-        );
-      }
+    }
+    node.status = change.status;
+    if (change.event === 'recovered') {
+      await this.transition(
+        em,
+        node,
+        'recovered',
+        `node ${node.name} (${node.domain}) is serving again`,
+      );
+    } else if (change.event === 'became_faulty') {
+      await this.transition(
+        em,
+        node,
+        'became_faulty',
+        `node ${node.name} (${node.domain}) failed ${attempts} probes: ${result.reason}`,
+      );
     }
     await em.flush();
     if (node.status !== statusBefore) {
