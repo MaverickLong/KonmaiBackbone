@@ -55,7 +55,10 @@ installed for the `konmai` user), `yarn` 1, and on the host additionally `uv` an
 5. systemd: copy `deploy/systemd/konmai-host.service`, then
    `systemctl enable --now konmai-host`. Migrations run automatically at startup.
 
-6. Open `https://cdn.example.com`, sign in, create apps and variants.
+6. Open `https://cdn.example.com`, sign in, create apps and variants. The Settings page holds the
+   grace period (60 minutes by default) during which the release a new version replaced stays on
+   the host and on the nodes so that downloads in progress can finish; afterwards it is deleted
+   everywhere.
 
 ## Node
 

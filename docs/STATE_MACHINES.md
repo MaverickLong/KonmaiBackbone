@@ -15,32 +15,34 @@ fact kept in two places that have to agree.
 Two of the hazards below were live in production on 2026-11-08 and are fixed alongside this
 document: the node `Link` could park itself in `CONNECTING` forever after a rejected upgrade (N1),
 and the host mirrored agent connectivity into a column that went stale on every restart (H3).
+Since then the host side of H1, H2, H5, H7 and H8 has been made explicit; each entry says how.
 
 ## Host
 
 ### H1. Release lifecycle
 
-- Subject: `Release.state` (`host/src/db/entities.ts`); explicit states, implicit transitions.
+- Subject: `Release.state` (`host/src/db/entities.ts`). Explicit states; the transitions are now explicit too: every change goes through `moveRelease` in `host/src/catalogue/lifecycle.ts`, which holds the table of allowed moves and throws on anything else.
 - Lives in: the database row plus the release directory under `<storage>/store`.
 - States: `ingesting` → `active` → `retained` → `deleting` → (row removed).
 - Transitions:
-  - create as `ingesting`: `publishRelease` in `host/src/catalogue/lifecycle.ts`, before any file is moved.
+  - create as `ingesting`: `publishRelease`, before any file is moved.
   - `ingesting` → removed: the same function when moving a staged file fails.
   - `ingesting` → `active`, previous `active` → `retained`, older `active`/`retained` → `deleting`: the transaction in `publishRelease`.
+  - `retained` → `deleting`: `expireRetained`, run every minute, once the successor has been active for the grace period from the Settings page (60 minutes by default). Nodes delete their copy with the next manifest.
   - any → `deleting`: `removeRelease` (admin `DELETE /variants/:id/releases/:version`).
   - `retained` → `active`: `promoteRetained` after an active release is removed by hand.
   - `ingesting` older than one hour → `deleting`: `sweepOrphans` in `host/src/stats/jobs.ts` (00:30 UTC).
-  - `deleting` → removed, directory deleted: `deleteMarkedReleases`, called from publish, removal and the sweep.
-- Hazards: the row is flushed before the files move and the activation transaction runs afterwards, so a crash in between leaves an `ingesting` row whose files already sit in the store; the sweep deletes both after an hour and the downloader has to fetch the package again. Store directories without a row are removed by the same sweep, so the file system copy converges within a day.
+  - `deleting` → removed, directory deleted: `deleteMarkedReleases`, called from publish, removal, expiry and the sweep.
+- Hazards: the row is flushed before the files move and the activation transaction runs afterwards, so a crash in between leaves an `ingesting` row whose files already sit in the store; the sweep deletes both after an hour and the downloader has to fetch the package again. Store directories without a row are removed by the same sweep, so the file system copy converges within a day. A download of the replaced release that is still running when the grace period ends is cut off; the period exists to make that rare.
 
 ### H2. Node health
 
-- Subject: `Node.status` with `lastHealthyAt`, `lastFailureAt`, `lastFailureReason`; explicit states, implicit transitions.
+- Subject: `Node.status` with `lastHealthyAt`, `lastFailureAt`, `lastFailureReason`. The transitions are now one pure function, `nextHealth` in `host/src/nodes/prober.ts`; the prober only applies its result.
 - Lives in: the database row; the e-mail throttle (`lastEmailAt`) and the `running` guard live in memory in `Prober`.
-- States: `unknown` → `online` ⇄ `faulty`. Nothing ever returns to `unknown`.
-- Transitions (`Prober.probe` in `host/src/nodes/prober.ts`): healthy while `unknown` → `online` silently; healthy while `faulty` → `online` with a `recovered` event and e-mail; three failed attempts while not `faulty` → `faulty` with a `became_faulty` event and e-mail. Transitions within two minutes of the previous e-mail for the same node are logged without e-mail.
-- Derived state: a node is _routable_ when `enabled`, `status === 'online'` and under its quota (`RoutableNodes.list`), cached for 30 s.
-- Hazards: only enabled nodes are probed, so a node disabled in the dashboard keeps its last `status`; re-enabling it makes it routable at once with a status of any age, until the next five-minute probe. `lastEmailAt` is in memory, so a host restart re-arms the throttle. The probe reads `/files/health`, a file the agent writes at start (`Storage.prepare`) and nginx serves, so a node whose agent is dead still counts as `online`; that is intended (nginx keeps serving) but means `status` says nothing about the agent, and a node whose agent has never run is `faulty` until it does.
+- States: `unknown` → `online` ⇄ `faulty`, and back to `unknown` only when an administrator re-enables the node.
+- Transitions: healthy while `unknown` → `online` silently; healthy while `faulty` → `online` with a `recovered` event and e-mail; three failed attempts while not `faulty` → `faulty` with a `became_faulty` event and e-mail. Transitions within two minutes of the previous e-mail for the same node are logged without e-mail. `PATCH /nodes/:id` with `enabled: true` resets a disabled node to `unknown` and probes it right away.
+- Derived state: a node is _routable_ when `enabled`, `status === 'online'` and not exhausted by the same `quotaView` the dashboard shows (`RoutableNodes.list`), cached for 30 s and dropped on every probe transition and node edit.
+- Hazards: `lastEmailAt` is in memory, so a host restart re-arms the throttle. The probe reads `/files/health`, a file the agent writes at start (`Storage.prepare`) and nginx serves, so a node whose agent is dead still counts as `online`; that is intended (nginx keeps serving) but means `status` says nothing about the agent, and a node whose agent has never run is `faulty` until it does.
 
 ### H3. Agent connection (the one that drifted)
 
@@ -63,7 +65,8 @@ and the host mirrored agent connectivity into a column that went stale on every 
 - Subject: the singleton `DownloaderState` (`phase` `idle` | `checking` | `downloading`, `lastSeenAt`, pass timestamps and summary).
 - Lives in: the database, written only by heartbeats (`POST /api/ingest/heartbeat`).
 - Transitions: `Runner.run_pass` and `Runner.process` in `downloader/src/konmai_downloader/runner.py` send `idle` → `checking` → `downloading` → `idle`; the scheduler sends `idle` on every quiet poll.
-- Hazard: nothing on the host ever moves the phase back to `idle`, so a downloader killed mid-pass is shown as `checking` or `downloading` forever. The Downloader page derives a "no recent heartbeat" warning after ten minutes (`dashboard/src/pages/Downloader.tsx`); the Overview tile only shows "seen … ago".
+- Derived state: `downloaderView` in `host/src/http/admin/stats.ts` reports `offline` instead of the last phase once no heartbeat arrived for ten minutes, so a downloader killed mid-pass no longer shows as `downloading` forever; the Overview tile and the Downloader page both read that.
+- Hazard: a single very large download can exceed ten minutes between heartbeats and show as `offline` until the next one.
 
 ### H6. Holdings
 
@@ -75,7 +78,7 @@ and the host mirrored agent connectivity into a column that went stale on every 
 ### H7. Quota adjustment
 
 - Subject: a manual true-up of a node's bandwidth usage.
-- Lives in: `Node.usageAdjustmentBytes` plus `usageAdjustmentPeriodStart`; the adjustment "applies" only while the stored period start equals the start of the current billing period (`nodeViews` in `host/src/http/admin/nodes.ts`, `RoutableNodes.list`).
+- Lives in: `Node.usageAdjustmentBytes` plus `usageAdjustmentPeriodStart`; the adjustment "applies" only while the stored period start equals the start of the current billing period. That rule, and the traffic sums it joins, live in one place now: `periodUsage` in `host/src/nodes/quota.ts`, used by the node list and by routing.
 - States: none, applied, expired (implicit: the number is still stored but ignored).
 - Transitions: `PATCH /nodes/:id` with `usageAdjustmentBytes` stamps the current period; the period rollover expires it without touching the row.
 - Hazard: after rollover the settings form still shows the old number as if it counted; `QuotaView.adjustmentBytes` is the truthful value.
@@ -83,14 +86,12 @@ and the host mirrored agent connectivity into a column that went stale on every 
 ### H8. Routable node cache
 
 - Subject: `RoutableNodes.cached` (`host/src/routing/routable.ts`): empty, fresh (< 30 s), stale, or invalidated.
-- Transitions: `list()` fills it; `invalidate()` is called when a probe changes a status and from the admin probe and disconnect actions.
-- Hazard: `PATCH /nodes/:id` without `enabled: false` (countries, weight, quota, catch-all) does not invalidate, so routing follows the old settings for up to 30 s. Harmless, but easy to forget when adding fields.
+- Transitions: `list()` fills it; `invalidate()` is called when a probe changes a status and from every admin node action, including any `PATCH /nodes/:id`.
 
 ### H9. Download statistics roll-up
 
 - Subject: a day's downloads exist as raw `Download` rows, as a `DownloadSummary`, or both.
-- Transitions: `rollUpDownloads` (00:10 UTC, `host/src/stats/jobs.ts`) recomputes summaries for every completed day still present in raw rows, then deletes raw rows older than 90 days; `/stats/downloads` reads summaries before the raw cut-off and raw rows after it.
-- Hazard: the cut-off is an instant, not a day boundary, so the day the cut-off falls in is partly deleted from raw rows and still excluded from summaries by `day < dayOf(rawCutoff)`; that one day is under-counted while it sits on the boundary.
+- Transitions: `rollUpDownloads` (00:10 UTC, `host/src/stats/jobs.ts`) recomputes summaries in SQL for every completed day still present in raw rows, then deletes raw rows older than the cut-off; `/stats/downloads` reads summaries before the cut-off and raw rows after it. The cut-off (`rawDownloadCutoff`) is a UTC midnight 90 days back, so no day is split between the two.
 
 ### H10. App icon
 
@@ -206,4 +207,4 @@ Other React state (open modals, form buffers, expanded rows, the colour scheme) 
 
 ### P3. User ⇄ host download
 
-- `GET /d/:package/:variant/:version/:file` resolves `latest` to the `active` release or a pinned version to `active`/`retained`, picks a routable holder (country, then catch-all, then anyone), and answers `302`, or serves the file itself via `X-Accel-Redirect` when no node qualifies; the `Download` row is written after the response.
+- `GET /d/:package/:variant/:version/:file` resolves `latest` to the `active` release or a pinned version to `active`/`retained` (the latter only during the grace period of H1), picks a routable holder (country, then catch-all, then anyone), and answers `302`, or serves the file itself via `X-Accel-Redirect` when no node qualifies; the `Download` row is written after the response.
