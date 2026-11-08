@@ -1,55 +1,41 @@
 import { Cron } from 'croner';
 import { deleteMarkedReleases, expireRetained, moveRelease } from '../catalogue/lifecycle.js';
-import { AddressTraffic, Download, DownloadSummary, Release, Traffic } from '../db/entities.js';
+import { AddressTraffic, Download, Release, Traffic } from '../db/entities.js';
 import type { EntityManager } from '../db/orm.js';
 import type { Context } from '../http/context.js';
 import { loadSettings } from '../settings.js';
-import { addressRetentionDays, dayOf, rawDownloadRetentionDays } from '../http/admin/stats.js';
+import { addressRetentionDays, dayOf, rawDownloadCutoff } from '../http/admin/stats.js';
 
 const dayMilliseconds = 86_400_000;
 const trafficRetentionDays = 400;
 const ingestTimeoutMilliseconds = 3_600_000;
 
 // Collapses raw download rows of completed days into `DownloadSummary` and drops raw rows older
-// than the retention window. Re-running is safe: every day in range is recomputed from scratch.
+// than the retention window. Re-running is safe: every day still held raw is recomputed from
+// scratch. Returns the number of summary rows written.
 export async function rollUpDownloads(em: EntityManager, now = new Date()): Promise<number> {
-  const todayStart = new Date(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
-  const cutoff = new Date(now.getTime() - rawDownloadRetentionDays * dayMilliseconds);
-  const downloads = await em.find(
-    Download,
-    { at: { $lt: todayStart } },
-    { populate: ['file', 'file.release'] },
+  const todayStart = new Date(`${dayOf(now)}T00:00:00Z`);
+  // `??` travels as a parameter because the query layer would read it as a placeholder.
+  const written = await em.execute<{ affectedRows: number }>(
+    `insert into download_summary (day, variant_id, node_id, country, count)
+     select date(d.at / 1000, 'unixepoch'), r.variant_id, coalesce(d.node_id, 0),
+            coalesce(d.country, ?), count(*)
+       from download d
+       join release_file f on f.id = d.file_id
+       join release r on r.id = f.release_id
+      where d.at < ? group by 1, 2, 3, 4
+     on conflict (day, variant_id, node_id, country) do update set count = excluded.count`,
+    ['??', todayStart],
+    'run',
   );
-  const counts = new Map<
-    string,
-    { day: string; variant: number; nodeId: number; country: string; count: number }
-  >();
-  for (const download of downloads) {
-    const row = {
-      day: download.at.toISOString().slice(0, 10),
-      variant: download.file.release.variant.id,
-      nodeId: download.node?.id ?? 0,
-      country: download.country ?? '??',
-    };
-    const key = `${row.day}|${row.variant}|${row.nodeId}|${row.country}`;
-    const existing = counts.get(key);
-    if (existing === undefined) {
-      counts.set(key, { ...row, count: 1 });
-    } else {
-      existing.count++;
-    }
-  }
-  if (counts.size > 0) {
-    await em.upsertMany(DownloadSummary, [...counts.values()]);
-  }
-  await em.nativeDelete(Download, { at: { $lt: cutoff } });
+  await em.nativeDelete(Download, { at: { $lt: rawDownloadCutoff(now) } });
   await em.nativeDelete(Traffic, {
     hourStart: { $lt: new Date(now.getTime() - trafficRetentionDays * dayMilliseconds) },
   });
   await em.nativeDelete(AddressTraffic, {
     day: { $lt: dayOf(new Date(now.getTime() - addressRetentionDays * dayMilliseconds)) },
   });
-  return counts.size;
+  return written.affectedRows;
 }
 
 // Removes releases whose ingest never finished and store directories no release refers to.

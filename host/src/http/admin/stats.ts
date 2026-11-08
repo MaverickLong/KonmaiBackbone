@@ -19,7 +19,6 @@ import {
   Node,
   Release,
   SyncEvent,
-  Traffic,
   Variant,
 } from '../../db/entities.js';
 import type { EntityManager } from '../../db/orm.js';
@@ -35,6 +34,13 @@ export const addressRetentionDays = 90;
 
 export function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+// Raw download rows older than this exist only in the daily roll-up. It sits on a UTC midnight so
+// that no day is split between the two.
+export function rawDownloadCutoff(now: Date): Date {
+  const day = dayOf(new Date(now.getTime() - rawDownloadRetentionDays * dayMilliseconds));
+  return new Date(`${day}T00:00:00Z`);
 }
 
 // A downloader that has not reported for this long is shown as offline instead of the phase its
@@ -75,24 +81,25 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
     const nodes = await em().find(Node, {});
     const connected = new Set(dependencies.connectedNodeIds());
     const weekAgo = new Date(now.getTime() - 7 * dayMilliseconds);
-    const recent = await em().find(Download, { at: { $gte: weekAgo } });
+    const recent = await em().execute<
+      { node_id: number | null; country: string | null; count: number }[]
+    >(
+      'select node_id, country, count(*) as count from download where at >= ? group by node_id, country',
+      [weekAgo],
+    );
     const nodesById = new Map(nodes.map((node) => [node.id, node]));
     const unserved = new Map<string, number>();
+    let last7Days = 0;
     let servedByHost = 0;
-    for (const download of recent) {
-      const node =
-        download.node === null || download.node === undefined
-          ? null
-          : nodesById.get(download.node.id);
-      if (node === undefined || node === null) {
-        servedByHost++;
+    for (const row of recent) {
+      const count = Number(row.count);
+      const node = row.node_id === null ? undefined : nodesById.get(row.node_id);
+      last7Days += count;
+      if (node === undefined) {
+        servedByHost += count;
       }
-      if (
-        download.country !== null &&
-        download.country !== undefined &&
-        (node === null || node === undefined || !node.countries.includes(download.country))
-      ) {
-        unserved.set(download.country, (unserved.get(download.country) ?? 0) + 1);
+      if (row.country !== null && (node === undefined || !node.countries.includes(row.country))) {
+        unserved.set(row.country, (unserved.get(row.country) ?? 0) + count);
       }
     }
     const servable = await em().find(Release, { state: { $in: ['active', 'retained'] } });
@@ -110,7 +117,7 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
       storeBytes: servable.reduce((sum, release) => sum + release.sizeBytes, 0),
       downloads: {
         today: await countDownloadsSince(em(), new Date(`${dayOf(now)}T00:00:00Z`)),
-        last7Days: recent.length,
+        last7Days,
         last30Days: await countDownloadsSince(em(), new Date(now.getTime() - 30 * dayMilliseconds)),
       },
       servedByHostLast7Days: servedByHost,
@@ -134,7 +141,7 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
       query.from === undefined
         ? new Date(to.getTime() - 30 * dayMilliseconds)
         : new Date(query.from);
-    const rawCutoff = new Date(Date.now() - rawDownloadRetentionDays * dayMilliseconds);
+    const rawCutoff = rawDownloadCutoff(new Date());
     const counts = new Map<string, number>();
     const add = (key: string, count: number): void => {
       counts.set(key, (counts.get(key) ?? 0) + count);
@@ -148,15 +155,25 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
         add(summaryKey(summary, query.groupBy), summary.count);
       }
     }
-    const downloads = await em().find(
-      Download,
-      {
-        at: { $gte: from < rawCutoff ? rawCutoff : from, $lt: to },
-      },
-      { populate: ['file', 'file.release'] },
+    // Raw rows are counted by SQLite; `??` must travel as a parameter because the query layer
+    // would read it as a placeholder.
+    const keyExpression = {
+      day: "date(d.at / 1000, 'unixepoch')",
+      variant: 'r.variant_id',
+      node: 'coalesce(d.node_id, 0)',
+      country: 'coalesce(d.country, ?)',
+    }[query.groupBy];
+    const joins =
+      query.groupBy === 'variant'
+        ? 'join release_file f on f.id = d.file_id join release r on r.id = f.release_id'
+        : '';
+    const counted = await em().execute<{ key: string | number; count: number }[]>(
+      `select ${keyExpression} as key, count(*) as count from download d ${joins}
+       where d.at >= ? and d.at < ? group by key`,
+      [...(query.groupBy === 'country' ? ['??'] : []), from < rawCutoff ? rawCutoff : from, to],
     );
-    for (const download of downloads) {
-      add(downloadKey(download, query.groupBy), 1);
+    for (const row of counted) {
+      add(query.groupBy === 'node' && row.key === 0 ? 'host' : String(row.key), Number(row.count));
     }
     const rows: DownloadStatsRow[] = [...counts.entries()]
       .map(([key, count]) => ({ key, count }))
@@ -231,31 +248,35 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
       query.from === undefined
         ? new Date(to.getTime() - 30 * dayMilliseconds)
         : new Date(query.from);
-    const buckets = await em().find(Traffic, {
-      ...(query.nodeId === undefined ? {} : { node: query.nodeId }),
-      hourStart: { $gte: from, $lt: to },
-    });
-    const rows = new Map<string, TrafficStatsRow>();
-    for (const bucket of buckets) {
-      const start =
-        query.resolution === 'day'
-          ? `${dayOf(bucket.hourStart)}T00:00:00.000Z`
-          : bucket.hourStart.toISOString();
-      const key = `${bucket.node.id}|${start}`;
-      const row = rows.get(key) ?? {
-        nodeId: bucket.node.id,
-        start,
-        egressBytes: 0,
-        ingressBytes: 0,
-        requests: 0,
-      };
-      row.egressBytes += bucket.egressBytes;
-      row.ingressBytes += bucket.ingressBytes;
-      row.requests += bucket.requests;
-      rows.set(key, row);
-    }
+    const bucket =
+      query.resolution === 'day' ? "date(hour_start / 1000, 'unixepoch')" : 'hour_start';
+    const rows = await em().execute<
+      {
+        node_id: number;
+        bucket: string | number;
+        egress: number;
+        ingress: number;
+        requests: number;
+      }[]
+    >(
+      `select node_id, ${bucket} as bucket, sum(egress_bytes) as egress,
+         sum(ingress_bytes) as ingress, sum(requests) as requests
+       from traffic
+       where hour_start >= ? and hour_start < ? ${query.nodeId === undefined ? '' : 'and node_id = ?'}
+       group by node_id, bucket order by bucket, node_id`,
+      [from, to, ...(query.nodeId === undefined ? [] : [query.nodeId])],
+    );
     response.json(
-      [...rows.values()].sort((a, b) => a.start.localeCompare(b.start) || a.nodeId - b.nodeId),
+      rows.map((row): TrafficStatsRow => ({
+        nodeId: row.node_id,
+        start:
+          query.resolution === 'day'
+            ? `${row.bucket}T00:00:00.000Z`
+            : new Date(Number(row.bucket)).toISOString(),
+        egressBytes: Number(row.egress),
+        ingressBytes: Number(row.ingress),
+        requests: Number(row.requests),
+      })),
     );
   });
 
@@ -293,20 +314,5 @@ function summaryKey(
       return summary.nodeId === 0 ? 'host' : String(summary.nodeId);
     case 'country':
       return summary.country;
-  }
-}
-
-function downloadKey(download: Download, groupBy: 'day' | 'variant' | 'node' | 'country'): string {
-  switch (groupBy) {
-    case 'day':
-      return dayOf(download.at);
-    case 'variant':
-      return String(download.file.release.variant.id);
-    case 'node':
-      return download.node === null || download.node === undefined
-        ? 'host'
-        : String(download.node.id);
-    case 'country':
-      return download.country ?? '??';
   }
 }
