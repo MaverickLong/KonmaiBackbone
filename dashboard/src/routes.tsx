@@ -8,6 +8,7 @@ import { LoginPage } from './pages/Login';
 import { NodeDetailPage } from './pages/NodeDetail';
 import { NodesPage } from './pages/Nodes';
 import { OverviewPage } from './pages/Overview';
+import { SettingsPage } from './pages/Settings';
 import { VariantPage } from './pages/Variant';
 
 export const router = createBrowserRouter([
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: 'variants/:id', element: <VariantPage /> },
       { path: 'downloads', element: <DownloadsPage /> },
       { path: 'downloader', element: <DownloaderPage /> },
+      { path: 'settings', element: <SettingsPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

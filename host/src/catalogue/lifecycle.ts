@@ -6,8 +6,6 @@ import { conflict, HttpError, notFound } from '../http/errors.js';
 import type { Logger } from '../logger.js';
 import { hashFile, type Store } from './store.js';
 
-export const retainedReleases = 2;
-
 // Emits 'changed' whenever the set of servable releases changes; the node gateway listens and
 // pushes a fresh manifest to every connected node.
 export const catalogueEvents = new EventEmitter<{ changed: [] }>();
@@ -146,6 +144,38 @@ export async function removeRelease(
   await deleteMarkedReleases(em, store, logger);
   await promoteRetained(em, release.variant.id);
   catalogueEvents.emit('changed');
+}
+
+// The release a new version replaced stays servable for a grace period so that downloads in
+// progress can finish, then it goes the way of everything older. Nodes delete their copy as soon
+// as the next manifest no longer lists it.
+export async function expireRetained(
+  em: EntityManager,
+  store: Store,
+  logger: Logger,
+  graceMinutes: number,
+  now = new Date(),
+): Promise<number> {
+  const retained = await em.find(Release, { state: 'retained' });
+  let expired = 0;
+  for (const release of retained) {
+    const active = await em.findOne(Release, { variant: release.variant, state: 'active' });
+    if (active === null) {
+      continue;
+    }
+    const replacedAt = active.activatedAt ?? active.createdAt;
+    if (now.getTime() - replacedAt.getTime() >= graceMinutes * 60_000) {
+      moveRelease(release, 'deleting');
+      expired++;
+    }
+  }
+  if (expired === 0) {
+    return 0;
+  }
+  await em.flush();
+  await deleteMarkedReleases(em, store, logger);
+  catalogueEvents.emit('changed');
+  return expired;
 }
 
 async function promoteRetained(em: EntityManager, variantId: number): Promise<void> {

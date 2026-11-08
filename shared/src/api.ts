@@ -136,6 +136,14 @@ export const downloaderHeartbeat = z.object({
   passSummary: z.string().max(4000).nullable().default(null),
 });
 
+export const settingsUpdate = z.object({
+  retainedGraceMinutes: z
+    .number()
+    .int()
+    .min(0)
+    .max(7 * 24 * 60),
+});
+
 export const downloadGroupings = ['day', 'variant', 'node', 'country'] as const;
 export const downloadGrouping = z.enum(downloadGroupings);
 export const dateRange = z.object({

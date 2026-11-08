@@ -6,6 +6,7 @@ import {
   IconCloudDownload,
   IconLayoutDashboard,
   IconServer,
+  IconSettings,
 } from '@tabler/icons-react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { session } from '../api/client';
@@ -16,6 +17,7 @@ const links = [
   { to: '/apps', label: 'Apps', icon: IconApps },
   { to: '/downloads', label: 'Downloads', icon: IconChartBar },
   { to: '/downloader', label: 'Downloader', icon: IconCloudDownload },
+  { to: '/settings', label: 'Settings', icon: IconSettings },
 ];
 
 export function Shell() {

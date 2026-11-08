@@ -1,8 +1,9 @@
 import { Cron } from 'croner';
-import { deleteMarkedReleases, moveRelease } from '../catalogue/lifecycle.js';
+import { deleteMarkedReleases, expireRetained, moveRelease } from '../catalogue/lifecycle.js';
 import { AddressTraffic, Download, DownloadSummary, Release, Traffic } from '../db/entities.js';
 import type { EntityManager } from '../db/orm.js';
 import type { Context } from '../http/context.js';
+import { loadSettings } from '../settings.js';
 import { addressRetentionDays, dayOf, rawDownloadRetentionDays } from '../http/admin/stats.js';
 
 const dayMilliseconds = 86_400_000;
@@ -94,6 +95,19 @@ export class Jobs {
         { timezone: 'UTC' },
         () => void this.run('orphan sweep', (em) => sweepOrphans(this.context, em)),
       ),
+      new Cron(
+        '* * * * *',
+        { timezone: 'UTC' },
+        () =>
+          void this.run('retention', async (em) =>
+            expireRetained(
+              em,
+              this.context.store,
+              this.context.logger,
+              (await loadSettings(em)).retainedGraceMinutes,
+            ),
+          ),
+      ),
     );
   }
 
@@ -107,7 +121,10 @@ export class Jobs {
     const em = this.context.orm.em.fork();
     try {
       const result = await work(em);
-      this.context.logger.info({ job: name, result }, 'job finished');
+      // The retention sweep runs every minute and usually finds nothing; only work gets a line.
+      if (result !== 0) {
+        this.context.logger.info({ job: name, result }, 'job finished');
+      }
     } catch (error) {
       this.context.logger.error({ job: name, error }, 'job failed');
     }

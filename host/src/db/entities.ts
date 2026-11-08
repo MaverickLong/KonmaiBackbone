@@ -199,6 +199,18 @@ export const DownloaderState = defineEntity({
 });
 export type DownloaderState = InferEntity<typeof DownloaderState>;
 
+// Operator settings edited in the dashboard; one row with id 1.
+export const Settings = defineEntity({
+  name: 'Settings',
+  properties: {
+    id: p.integer().primary(),
+    // How long the release a new version replaced stays on disk, on the host and on the nodes, so
+    // that downloads in progress can finish.
+    retainedGraceMinutes: p.integer(),
+  },
+});
+export type Settings = InferEntity<typeof Settings>;
+
 export const entities = [
   App,
   Variant,
@@ -213,4 +225,5 @@ export const entities = [
   Download,
   DownloadSummary,
   DownloaderState,
+  Settings,
 ];

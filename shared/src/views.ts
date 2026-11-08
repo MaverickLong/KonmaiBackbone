@@ -180,6 +180,11 @@ export interface DownloaderView {
   passSummary: string | null;
 }
 
+export interface SettingsView {
+  // Minutes the release a new version replaced stays on disk so downloads in progress finish.
+  retainedGraceMinutes: number;
+}
+
 export interface DownloadStatsRow {
   key: string;
   count: number;

@@ -16,6 +16,7 @@ import type {
   NodeDetailView,
   NodeView,
   OverviewView,
+  SettingsView,
   SyncEventView,
   TrafficStatsRow,
   VariantDetailView,
@@ -33,6 +34,7 @@ export const keys = {
   app: (packageName: string) => ['apps', packageName] as const,
   variant: (id: number) => ['variants', id] as const,
   downloader: ['downloader'] as const,
+  settings: ['settings'] as const,
   events: (params: object) => ['events', params] as const,
   downloads: (params: object) => ['stats', 'downloads', params] as const,
   traffic: (params: object) => ['stats', 'traffic', params] as const,
@@ -87,6 +89,13 @@ export function useDownloader() {
     queryKey: keys.downloader,
     queryFn: () => api<DownloaderView>('/api/admin/downloader'),
     refetchInterval: livePolling,
+  });
+}
+
+export function useSettings() {
+  return useQuery({
+    queryKey: keys.settings,
+    queryFn: () => api<SettingsView>('/api/admin/settings'),
   });
 }
 
@@ -202,6 +211,12 @@ export const useResyncNode = () =>
     (id: number) =>
       api<{ delivered: boolean }>(`/api/admin/nodes/${id}/resync`, { method: 'POST' }),
     [keys.nodes],
+  );
+
+export const useUpdateSettings = () =>
+  useAction(
+    (body: object) => api<SettingsView>('/api/admin/settings', { method: 'PATCH', body }),
+    [keys.settings],
   );
 
 export const useCreateApp = () =>

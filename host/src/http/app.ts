@@ -11,6 +11,7 @@ import { nodeAuthRouter, storeRouter } from './nodeAuth.js';
 import { appsRouter } from './admin/apps.js';
 import { nodesRouter, type NodeDependencies } from './admin/nodes.js';
 import { sessionRouter } from './admin/session.js';
+import { settingsRouter } from './admin/settings.js';
 import { statsRouter, type StatsDependencies } from './admin/stats.js';
 import { variantsRouter } from './admin/variants.js';
 
@@ -39,6 +40,7 @@ export function createApp(context: Context, dependencies: AppDependencies): Expr
   admin.use(requireAdmin(context.config.admin));
   admin.use('/apps', appsRouter(context));
   admin.use('/variants', variantsRouter(context));
+  admin.use('/settings', settingsRouter(context));
   admin.use('/nodes', nodesRouter(context, dependencies));
   admin.use('/', statsRouter(context, dependencies));
   app.use('/api/admin', admin);
