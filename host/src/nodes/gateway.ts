@@ -95,12 +95,40 @@ export class Gateway {
     }
   }
 
+  // Sessions are forgotten before their sockets close so that the close handlers do not write to
+  // a database that is shutting down; the next start records the disconnects instead.
   close(): void {
     clearInterval(this.pinger);
-    for (const connection of this.connections.values()) {
+    const open = [...this.connections.values()];
+    this.connections.clear();
+    for (const connection of open) {
       connection.socket.close(1001, 'host shutting down');
     }
     this.server.close();
+  }
+
+  // The previous host process could not record that its agents went away when it stopped, so
+  // every node whose newest agent event still says "connected" gets its disconnect recorded now.
+  async recordMissedDisconnects(): Promise<void> {
+    const em = this.context.orm.em.fork();
+    const now = new Date();
+    for (const node of await em.find(Node, {})) {
+      const newest = await em.findOne(
+        HealthEvent,
+        { node, kind: { $in: ['agent_connected', 'agent_disconnected'] } },
+        { orderBy: { at: 'desc', id: 'desc' } },
+      );
+      if (newest?.kind === 'agent_connected') {
+        em.create(HealthEvent, {
+          node,
+          at: now,
+          kind: 'agent_disconnected',
+          detail: 'connection lost when the host stopped',
+          emailSent: false,
+        });
+      }
+    }
+    await em.flush();
   }
 
   private async upgrade(request: IncomingMessage, socket: Duplex, head: Buffer): Promise<void> {
@@ -152,7 +180,6 @@ export class Gateway {
     socket.on('error', (error) => this.context.logger.warn({ nodeId, error }, 'node socket error'));
 
     await this.withNode(nodeId, async (em, node) => {
-      node.agentConnected = true;
       em.create(HealthEvent, {
         node,
         at: new Date(),
@@ -177,7 +204,6 @@ export class Gateway {
     this.connections.delete(connection.nodeId);
     this.context.logger.info({ nodeId: connection.nodeId }, 'node agent disconnected');
     await this.withNode(connection.nodeId, async (em, node) => {
-      node.agentConnected = false;
       em.create(HealthEvent, {
         node,
         at: new Date(),

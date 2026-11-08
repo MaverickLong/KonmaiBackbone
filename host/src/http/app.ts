@@ -9,14 +9,13 @@ import { errorHandler } from './errors.js';
 import { ingestRouter } from './ingest.js';
 import { nodeAuthRouter, storeRouter } from './nodeAuth.js';
 import { appsRouter } from './admin/apps.js';
-import { nodesRouter, type NodeActions } from './admin/nodes.js';
+import { nodesRouter, type NodeDependencies } from './admin/nodes.js';
 import { sessionRouter } from './admin/session.js';
 import { statsRouter, type StatsDependencies } from './admin/stats.js';
 import { variantsRouter } from './admin/variants.js';
 
-export interface AppDependencies extends DownloadDependencies, StatsDependencies {
-  nodeActions: NodeActions;
-}
+export interface AppDependencies
+  extends DownloadDependencies, StatsDependencies, NodeDependencies {}
 
 export function createApp(context: Context, dependencies: AppDependencies): Express {
   const app = express();
@@ -40,7 +39,7 @@ export function createApp(context: Context, dependencies: AppDependencies): Expr
   admin.use(requireAdmin(context.config.admin));
   admin.use('/apps', appsRouter(context));
   admin.use('/variants', variantsRouter(context));
-  admin.use('/nodes', nodesRouter(context, dependencies.nodeActions));
+  admin.use('/nodes', nodesRouter(context, dependencies));
   admin.use('/', statsRouter(context, dependencies));
   app.use('/api/admin', admin);
   app.use('/api/ingest', ingestRouter(context));

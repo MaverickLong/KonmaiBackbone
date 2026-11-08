@@ -73,7 +73,6 @@ export const Node = defineEntity({
     weight: p.integer().default(100),
     enabled: p.boolean().default(true),
     status: p.enum(['online', 'faulty', 'unknown']).default('unknown'),
-    agentConnected: p.boolean().default(false),
     agentVersion: p.string().nullable(),
     lastHealthyAt: p.datetime().nullable(),
     lastFailureAt: p.datetime().nullable(),

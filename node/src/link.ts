@@ -13,6 +13,8 @@ import type { Logger } from './logger.js';
 
 const minimumBackoffMilliseconds = 1_000;
 const maximumBackoffMilliseconds = 60_000;
+// A handshake that neither completes nor fails (unanswered TCP or TLS) must not park the agent.
+const handshakeTimeoutMilliseconds = 30_000;
 // The host pings every 30 s; three missed pings means the connection is dead.
 const silenceLimitMilliseconds = 90_000;
 
@@ -26,6 +28,7 @@ export class Link extends EventEmitter<LinkEvents> {
   private socket: WebSocket | null = null;
   private backoff = minimumBackoffMilliseconds;
   private stopped = false;
+  private reconnectTimer: NodeJS.Timeout | null = null;
   private silenceTimer: NodeJS.Timeout | null = null;
 
   constructor(
@@ -46,6 +49,10 @@ export class Link extends EventEmitter<LinkEvents> {
 
   stop(): void {
     this.stopped = true;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.socket?.close(1000, 'agent stopping');
   }
 
@@ -60,14 +67,17 @@ export class Link extends EventEmitter<LinkEvents> {
   private connect(): void {
     const url = this.config.hostUrl.replace(/^http/, 'ws') + '/api/nodes/ws';
     const socket = new WebSocket(url, {
+      handshakeTimeout: handshakeTimeoutMilliseconds,
       headers: {
         authorization: `Bearer ${this.config.token}`,
         [protocolHeader]: String(protocolVersion),
       },
     });
     this.socket = socket;
+    let opened = false;
 
     socket.on('open', () => {
+      opened = true;
       this.logger.info({ url }, 'connected to host');
       this.backoff = minimumBackoffMilliseconds;
       this.touch();
@@ -90,14 +100,16 @@ export class Link extends EventEmitter<LinkEvents> {
       }
       this.emit('message', result.data);
     });
-    socket.on('unexpected-response', (_request, response) => {
-      this.logger.error({ status: response.statusCode }, 'host rejected the connection');
-    });
+    // A rejected upgrade (nginx answering 502 while the host restarts) must end in 'error' and
+    // 'close' like any other failure; `ws` only does that itself when nothing listens for
+    // 'unexpected-response', so that event is deliberately left unhandled.
     socket.on('error', (error) => this.logger.warn({ error: error.message }, 'socket error'));
     socket.on('close', (code, reason) => {
       this.clearSilenceTimer();
-      this.logger.info({ code, reason: reason.toString() }, 'disconnected from host');
-      this.emit('disconnected');
+      if (opened) {
+        this.logger.info({ code, reason: reason.toString() }, 'disconnected from host');
+        this.emit('disconnected');
+      }
       if (!this.stopped) {
         this.scheduleReconnect();
       }
@@ -105,8 +117,12 @@ export class Link extends EventEmitter<LinkEvents> {
   }
 
   private scheduleReconnect(): void {
-    const jitter = Math.random() * this.backoff;
-    setTimeout(() => this.connect(), jitter);
+    const delay = Math.round(Math.random() * this.backoff);
+    this.logger.info({ delay }, 'reconnecting to host');
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, delay);
     this.backoff = Math.min(this.backoff * 2, maximumBackoffMilliseconds);
   }
 
