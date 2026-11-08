@@ -1,5 +1,4 @@
 import { Alert, Paper, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
-import dayjs from 'dayjs';
 import { useApps, useDownloader } from '../api/hooks';
 import { Loading, StatTile } from '../components/common';
 import { formatDate, formatRelative } from '../format';
@@ -11,7 +10,7 @@ export function DownloaderPage() {
     return <Loading />;
   }
   const data = downloader.data;
-  const stale = data.lastSeenAt === null || dayjs().diff(dayjs(data.lastSeenAt), 'minute') > 10;
+  const stale = data.phase === 'offline';
   const failures = (apps.data ?? []).flatMap((app) =>
     app.variants
       .filter((variant) => variant.lastCheckStatus === 'failed')

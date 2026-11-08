@@ -4,6 +4,8 @@ import type { SyncOutcome } from './protocol.js';
 export type NodeStatus = 'online' | 'faulty' | 'unknown';
 export type CheckStatus = 'up_to_date' | 'updated' | 'failed';
 export type DownloaderPhase = 'idle' | 'checking' | 'downloading';
+// What the dashboard shows: the last reported phase, or offline once heartbeats stop arriving.
+export type DownloaderStatus = DownloaderPhase | 'offline';
 
 export interface SessionView {
   subject: string;
@@ -171,7 +173,7 @@ export interface OverviewView {
 
 export interface DownloaderView {
   lastSeenAt: string | null;
-  phase: DownloaderPhase;
+  phase: DownloaderStatus;
   currentVariantId: number | null;
   passStartedAt: string | null;
   passFinishedAt: string | null;

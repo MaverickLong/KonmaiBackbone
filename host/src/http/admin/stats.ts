@@ -37,10 +37,20 @@ export function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function downloaderView(state: Awaited<ReturnType<typeof downloaderState>>): DownloaderView {
+// A downloader that has not reported for this long is shown as offline instead of the phase its
+// last heartbeat carried; one large download can take a few minutes without a heartbeat.
+const downloaderOfflineAfterMilliseconds = 10 * 60_000;
+
+export function downloaderView(
+  state: Awaited<ReturnType<typeof downloaderState>>,
+  now = new Date(),
+): DownloaderView {
+  const offline =
+    !state.lastSeenAt ||
+    now.getTime() - state.lastSeenAt.getTime() > downloaderOfflineAfterMilliseconds;
   return {
     lastSeenAt: state.lastSeenAt?.toISOString() ?? null,
-    phase: state.phase,
+    phase: offline ? 'offline' : state.phase,
     currentVariantId: state.currentVariantId ?? null,
     passStartedAt: state.passStartedAt?.toISOString() ?? null,
     passFinishedAt: state.passFinishedAt?.toISOString() ?? null,
