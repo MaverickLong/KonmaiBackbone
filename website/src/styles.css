@@ -5,7 +5,7 @@ a {
 }
 
 a:hover {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 /* Sections targeted by the alphabet bar stop below the sticky header. */
