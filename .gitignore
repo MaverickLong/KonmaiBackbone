@@ -144,7 +144,7 @@ vite.config.ts.timestamp-*
 
 # Konmai Backbone
 CLAUDE.md
-docs/PLAN.md
+docs/*
 downloader/config.json
 downloader/passwd.json
 downloader/konmai_backend.py
