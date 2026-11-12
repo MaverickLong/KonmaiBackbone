@@ -3,6 +3,8 @@ import type { PublicAppView } from 'konmai-shared';
 
 const apiBase = (import.meta.env['VITE_API_BASE'] as string | undefined)?.replace(/\/+$/, '') ?? '';
 
+const syncingRefetchMilliseconds = 30_000;
+
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
@@ -15,6 +17,14 @@ export function useCatalogue() {
   return useQuery({
     queryKey: ['catalogue'],
     queryFn: () => getJson<PublicAppView[]>(`${apiBase}/api/public/apps`),
+    // A release that just came in cannot be downloaded until a node has fetched it; keep looking
+    // so that someone waiting with the page open sees the button come alive.
+    refetchInterval: (query) =>
+      query.state.data?.some((app) =>
+        app.variants.some((variant) => variant.release.files.some((file) => !file.available)),
+      )
+        ? syncingRefetchMilliseconds
+        : false,
   });
 }
 

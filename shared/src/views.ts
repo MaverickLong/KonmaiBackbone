@@ -169,7 +169,6 @@ export interface OverviewView {
   activeReleases: number;
   storeBytes: number;
   downloads: { today: number; last7Days: number; last30Days: number };
-  servedByHostLast7Days: number;
   unservedCountries: { country: string; downloads: number }[];
   downloader: DownloaderView;
 }
@@ -229,6 +228,9 @@ export interface PublicFileView {
   sizeBytes: number;
   sha256: string;
   url: string;
+  // Whether a node can serve the file right now. The host never serves users itself, so a file
+  // that just came in is unavailable until the first node has fetched it.
+  available: boolean;
 }
 
 export interface PublicVariantView {

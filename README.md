@@ -31,8 +31,7 @@ yarn test                                  # vitest for shared, host and node
 cd downloader && uv sync && uv run python scripts/generate_protobuf.py && uv run pytest
 ```
 
-Running locally: create a `config.json` for the host from `host/config.example.json` (set
-`behindNginx: false` so the backend serves files itself), start it with
+Running locally: create a `config.json` for the host from `host/config.example.json`, start it with
 `yarn workspace konmai-host dev -- --config path/to/config.json`, create a node in the dashboard
 (`yarn workspace konmai-dashboard dev` proxies to `KONMAI_HOST_URL`, default
 `http://127.0.0.1:3000`), and start the agent with

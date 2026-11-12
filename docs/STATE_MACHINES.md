@@ -222,4 +222,4 @@ Other React state (open modals, form buffers, expanded rows, the colour scheme) 
 
 ### P3. User ⇄ host download
 
-- `GET /d/:package/:variant/:version/:file` resolves `latest` to the `active` release or a pinned version to `active`/`retained` (the latter only during the grace period of H1), picks a routable holder (country, then catch-all, then anyone), and answers `302`, or serves the file itself via `X-Accel-Redirect` when no node qualifies; the `Download` row is written after the response.
+- `GET /d/:package/:variant/:version/:file` resolves `latest` to the `active` release or a pinned version to `active`/`retained` (the latter only during the grace period of H1), picks a routable holder (country, then catch-all, then anyone), and answers `302`; the `Download` row is written after the response. When no routable node holds the file it answers `503` with `Retry-After` and records nothing: the host never serves users, so that its bandwidth stays with the nodes fetching a new release. `GET /api/public/apps` reports the same condition per file as `available`, which the public site polls while anything is still syncing.

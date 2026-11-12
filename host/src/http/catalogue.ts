@@ -1,14 +1,18 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import { compareNames, type PublicAppView } from 'konmai-shared';
-import { App, Release, ReleaseFile, Variant } from '../db/entities.js';
+import { App, Holding, Release, ReleaseFile, Variant } from '../db/entities.js';
 import type { EntityManager } from '../db/orm.js';
+import type { RoutableNodes } from '../routing/routable.js';
 import { downloadUrl, iconUrl } from '../urls.js';
 import type { Context } from './context.js';
 
+// `routableNodeIds` are the nodes downloads may be redirected to right now; a file none of them
+// holds cannot be downloaded yet.
 export async function publicCatalogue(
   em: EntityManager,
   publicUrl: string,
+  routableNodeIds: ReadonlySet<number>,
 ): Promise<PublicAppView[]> {
   const releases = await em.find(
     Release,
@@ -22,6 +26,15 @@ export async function publicCatalogue(
     ReleaseFile,
     { release: { $in: releases.map((release) => release.id) } },
     { orderBy: { fileName: 'asc' } },
+  );
+  const holdings = await em.find(Holding, {
+    file: { $in: files.map((file) => file.id) },
+    state: 'present',
+  });
+  const downloadable = new Set(
+    holdings
+      .filter((holding) => routableNodeIds.has(holding.node.id))
+      .map((holding) => holding.file.id),
   );
   const apps = new Map<string, PublicAppView>();
   for (const release of releases) {
@@ -58,6 +71,7 @@ export async function publicCatalogue(
               },
               true,
             ),
+            available: downloadable.has(file.id),
           })),
       },
     });
@@ -68,10 +82,19 @@ export async function publicCatalogue(
   );
 }
 
-export function catalogueRouter(context: Context): Router {
+export interface CatalogueDependencies {
+  routable: RoutableNodes;
+}
+
+export function catalogueRouter(context: Context, dependencies: CatalogueDependencies): Router {
   const router = Router();
   router.get('/apps', async (request, response) => {
-    const catalogue = await publicCatalogue(context.orm.em, context.config.publicUrl);
+    const routable = await dependencies.routable.list();
+    const catalogue = await publicCatalogue(
+      context.orm.em,
+      context.config.publicUrl,
+      new Set(routable.map((node) => node.id)),
+    );
     const body = JSON.stringify(catalogue);
     const etag = `"${createHash('sha1').update(body).digest('hex')}"`;
     response.setHeader('access-control-allow-origin', '*');

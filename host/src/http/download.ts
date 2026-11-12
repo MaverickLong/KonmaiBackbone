@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import {
   fileName as fileNameSchema,
-  fileUrlPath,
   packageName as packageNameSchema,
   slug,
   version as versionSchema,
@@ -21,6 +20,15 @@ const parameters = z.object({
   version: z.union([z.literal('latest'), versionSchema]),
   fileName: fileNameSchema,
 });
+
+// How long a client is told to wait when no node can serve a file yet; nodes usually have a new
+// release within a minute or two.
+const retryAfterSeconds = 60;
+const notDistributedMessage = [
+  'This file is still being copied to the download servers. Please try again in a minute or two.',
+  '文件正在同步到下载节点，请一两分钟后再试。',
+  '',
+].join('\n');
 
 export interface DownloadDependencies {
   geoip: GeoIp;
@@ -69,17 +77,17 @@ export function downloadRouter(context: Context, dependencies: DownloadDependenc
     const chosen = selectNode(candidates, country);
 
     response.setHeader('cache-control', 'no-store');
-    if (chosen !== null) {
-      response.redirect(302, nodeFileUrl(chosen.domain, locator));
-    } else if (context.config.behindNginx) {
-      response.setHeader('x-accel-redirect', `/internal/store/${fileUrlPath(locator)}`);
-      response.status(200).end();
-    } else {
-      response.sendFile(context.store.storedFilePath(locator), { dotfiles: 'deny' });
+    if (chosen === null) {
+      // The host never serves users itself: when a release has just come in, its bandwidth is
+      // what the nodes fetch the release with, and a rush of users would starve them.
+      response.setHeader('retry-after', String(retryAfterSeconds));
+      response.status(503).type('text/plain').send(notDistributedMessage);
+      return;
     }
+    response.redirect(302, nodeFileUrl(chosen.domain, locator));
 
     const record = context.orm.em.fork();
-    record.create(Download, { file, node: chosen?.id ?? null, country, at: new Date() });
+    record.create(Download, { file, node: chosen.id, country, at: new Date() });
     record
       .flush()
       .catch((error: unknown) => context.logger.error({ error }, 'recording download failed'));

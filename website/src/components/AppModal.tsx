@@ -6,6 +6,7 @@ import {
   Code,
   Divider,
   Group,
+  Loader,
   Modal,
   Stack,
   Text,
@@ -62,25 +63,39 @@ export function AppModal({ app, onClose }: { app: PublicAppView | null; onClose:
                   更新于 {publishedOn(variant)}
                 </Text>
               </Group>
-              {variant.release.files.map((file) => (
-                <Button
-                  key={file.fileName}
-                  component="a"
-                  href={file.url}
-                  rel="nofollow noopener noreferrer"
-                  variant="light"
-                  justify="space-between"
-                  leftSection={<IconDownload size={16} />}
-                  rightSection={
-                    <Text size="xs" c="dimmed">
-                      {formatBytes(file.sizeBytes)}
-                    </Text>
-                  }
-                  fullWidth
-                >
-                  {kindLabels[file.kind]} · {file.fileName}
-                </Button>
-              ))}
+              {variant.release.files.map((file) =>
+                file.available ? (
+                  <Button
+                    key={file.fileName}
+                    component="a"
+                    href={file.url}
+                    rel="nofollow noopener noreferrer"
+                    variant="light"
+                    justify="space-between"
+                    leftSection={<IconDownload size={16} />}
+                    rightSection={
+                      <Text size="xs" c="dimmed">
+                        {formatBytes(file.sizeBytes)}
+                      </Text>
+                    }
+                    fullWidth
+                  >
+                    {kindLabels[file.kind]} · {file.fileName}
+                  </Button>
+                ) : (
+                  <Button
+                    key={file.fileName}
+                    variant="light"
+                    color="gray"
+                    justify="space-between"
+                    leftSection={<Loader size={14} color="gray" />}
+                    fullWidth
+                    disabled
+                  >
+                    {kindLabels[file.kind]} · 正在同步到下载节点，请稍候
+                  </Button>
+                ),
+              )}
               {variant.release.files.some((file) => file.kind.startsWith('obb')) ? (
                 <Text size="xs" c="dimmed">
                   OBB 数据包需要与 APK 一同安装。

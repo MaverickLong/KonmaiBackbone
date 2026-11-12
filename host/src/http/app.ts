@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { RequestContext } from '@mikro-orm/core';
 import express, { type Express } from 'express';
 import { requireAdmin } from './auth.js';
-import { catalogueRouter } from './catalogue.js';
+import { catalogueRouter, type CatalogueDependencies } from './catalogue.js';
 import type { Context } from './context.js';
 import { downloadRouter, type DownloadDependencies } from './download.js';
 import { errorHandler } from './errors.js';
@@ -16,7 +16,12 @@ import { statsRouter, type StatsDependencies } from './admin/stats.js';
 import { variantsRouter } from './admin/variants.js';
 
 export interface AppDependencies
-  extends DownloadDependencies, StatsDependencies, NodeDependencies, IngestDependencies {}
+  extends
+    DownloadDependencies,
+    CatalogueDependencies,
+    StatsDependencies,
+    NodeDependencies,
+    IngestDependencies {}
 
 export function createApp(context: Context, dependencies: AppDependencies): Express {
   const app = express();
@@ -34,7 +39,7 @@ export function createApp(context: Context, dependencies: AppDependencies): Expr
   app.use(express.json({ limit: '1mb' }));
 
   app.use('/d', downloadRouter(context, dependencies));
-  app.use('/api/public', catalogueRouter(context));
+  app.use('/api/public', catalogueRouter(context, dependencies));
   app.use('/api/admin/session', sessionRouter(context));
   const admin = express.Router();
   admin.use(requireAdmin(context.config.admin));

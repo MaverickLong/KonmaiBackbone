@@ -49,8 +49,9 @@ installed for the `konmai` user), `yarn` 1, and on the host additionally `uv` an
 
 4. nginx: copy `deploy/nginx/host.conf` into `sites-available`, set `server_name`, certificates
    and paths, enable it, reload. The important parts are the `/api/ingest/` block (never public),
-   the WebSocket block for `/api/nodes/ws`, `/store/` guarded by `auth_request`, and the internal
-   `/internal/store/` location used for `X-Accel-Redirect`.
+   the WebSocket block for `/api/nodes/ws`, and `/store/` guarded by `auth_request`: only nodes
+   download from the host. Users are never served by it; a release no node has fetched yet
+   answers `503` with `Retry-After`, and the public site shows it as syncing.
 
 5. systemd: copy `deploy/systemd/konmai-host.service`, then
    `systemctl enable --now konmai-host`. Migrations run automatically at startup.
@@ -179,7 +180,7 @@ Migrations are applied on startup by the host and node processes.
 ## Checks after deployment
 
 - `curl -I https://cdn.example.com/d/<package>/<variant>/latest/<file>` answers `302` with a
-  node URL (or `200` from the host while no node holds the file yet).
+  node URL (or `503` with `Retry-After` while no usable node holds the file yet).
 - `curl -r 0-99 -o /dev/null -w '%{http_code}\n' <node URL>` prints `206`.
 - `curl https://node1.example.com/files/health` prints the node id and agent version.
 - Stop nginx on a node: within about five minutes the node turns faulty in the dashboard and the

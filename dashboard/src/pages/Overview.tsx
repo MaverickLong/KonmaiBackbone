@@ -63,8 +63,7 @@ export function OverviewPage() {
             Countries without a dedicated node (7 days)
           </Title>
           <Text size="xs" c="dimmed" mb="sm">
-            Requests served by a catch-all node, any holder, or the host (
-            {data.servedByHostLast7Days} by the host).
+            Requests served by a catch-all node or by any node holding the file.
           </Text>
           {data.unservedCountries.length === 0 ? (
             <Text c="dimmed" size="sm">

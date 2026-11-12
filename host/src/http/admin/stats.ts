@@ -79,7 +79,7 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
 
   router.get('/overview', async (_request, response) => {
     const now = new Date();
-    // Deleted nodes are loaded too: what they served must not be counted as served by the host.
+    // Deleted nodes are loaded too, so what they served is still matched against their countries.
     const everyNode = await em().find(Node, {});
     const nodes = everyNode.filter((node) => !node.deletedAt);
     const connected = new Set(dependencies.connectedNodeIds());
@@ -93,14 +93,10 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
     const nodesById = new Map(everyNode.map((node) => [node.id, node]));
     const unserved = new Map<string, number>();
     let last7Days = 0;
-    let servedByHost = 0;
     for (const row of recent) {
       const count = Number(row.count);
       const node = row.node_id === null ? undefined : nodesById.get(row.node_id);
       last7Days += count;
-      if (node === undefined) {
-        servedByHost += count;
-      }
       if (row.country !== null && (node === undefined || !node.countries.includes(row.country))) {
         unserved.set(row.country, (unserved.get(row.country) ?? 0) + count);
       }
@@ -123,7 +119,6 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
         last7Days,
         last30Days: await countDownloadsSince(em(), new Date(now.getTime() - 30 * dayMilliseconds)),
       },
-      servedByHostLast7Days: servedByHost,
       unservedCountries: [...unserved.entries()]
         .map(([country, downloads]) => ({ country, downloads }))
         .sort((a, b) => b.downloads - a.downloads)
