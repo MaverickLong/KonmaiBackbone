@@ -96,11 +96,11 @@ export function AppModal({ app, onClose }: { app: PublicAppView | null; onClose:
                   </Button>
                 ),
               )}
-              {variant.release.files.some((file) => file.kind.startsWith('obb')) ? (
+              {/* {variant.release.files.some((file) => file.kind.startsWith('obb')) ? (
                 <Text size="xs" c="dimmed">
                   OBB 数据包需要与 APK 一同安装。
                 </Text>
-              ) : null}
+              ) : null} */}
               {variant.sourceType === 'googleplay' ? (
                 <Anchor
                   href={`https://play.google.com/store/apps/details?id=${encodeURIComponent(app.packageName)}`}

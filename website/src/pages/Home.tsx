@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   Title,
+  Typography,
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import type { PublicAppView } from 'konmai-shared';
@@ -37,6 +38,10 @@ export function HomePage() {
     <Stack>
       <FirstVisitNotice />
       <Title order={1}>「Konmai Academy」</Title>
+      <Typography>
+        问题反馈请前往：
+        <a href="https://space.bilibili.com/1227019768">Bilibili - Konmai Academy</a>
+      </Typography>
       <TextInput
         placeholder="搜索游戏名或包名"
         leftSection={<IconSearch size={16} />}
