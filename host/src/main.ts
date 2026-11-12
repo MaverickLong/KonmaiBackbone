@@ -34,6 +34,7 @@ async function main(): Promise<void> {
   });
 
   const app = createApp(context, {
+    alerts,
     geoip,
     routable,
     connectedNodeIds: () => gateway.connectedNodeIds(),

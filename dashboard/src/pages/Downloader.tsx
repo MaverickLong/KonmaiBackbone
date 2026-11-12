@@ -1,7 +1,7 @@
-import { Alert, Paper, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Alert, Code, Paper, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { useApps, useDownloader } from '../api/hooks';
 import { Loading, StatTile } from '../components/common';
-import { formatDate, formatRelative } from '../format';
+import { formatDate, formatDevice, formatRelative } from '../format';
 
 export function DownloaderPage() {
   const downloader = useDownloader();
@@ -11,6 +11,14 @@ export function DownloaderPage() {
   }
   const data = downloader.data;
   const stale = data.phase === 'offline';
+  const googlePlay = data.googlePlay;
+  const pinnedAccounts = (apps.data ?? []).flatMap((app) =>
+    app.variants.flatMap((variant) =>
+      variant.source.type === 'googleplay' && variant.source.account !== undefined
+        ? [variant.source.account]
+        : [],
+    ),
+  );
   const failures = (apps.data ?? []).flatMap((app) =>
     app.variants
       .filter((variant) => variant.lastCheckStatus === 'failed')
@@ -43,6 +51,53 @@ export function DownloaderPage() {
         />
         <StatTile label="Pass summary" value={<Text size="sm">{data.passSummary ?? '–'}</Text>} />
       </SimpleGrid>
+      <Paper withBorder p="md">
+        <Title order={5} mb="xs">
+          Google accounts
+        </Title>
+        <Text size="sm" c="dimmed" mb="sm">
+          Managed on the host with <Code>konmai-downloader account add ALIAS EMAIL</Code>,{' '}
+          <Code>login ALIAS</Code>, <Code>rename ALIAS NEW_ALIAS</Code> and{' '}
+          <Code>remove ALIAS</Code>. Variants with no account set try every account in this order.
+          {googlePlay ? ` Reported ${formatRelative(googlePlay.reportedAt)}.` : ''}
+        </Text>
+        {!googlePlay || googlePlay.accounts.length === 0 ? (
+          <Text c="dimmed" size="sm">
+            {googlePlay
+              ? 'No account added yet.'
+              : 'The downloader has not reported its accounts yet.'}
+          </Text>
+        ) : (
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Alias</Table.Th>
+                <Table.Th>Email</Table.Th>
+                <Table.Th>Checked-in devices</Table.Th>
+                <Table.Th>Variants using it</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {googlePlay.accounts.map((account) => (
+                <Table.Tr key={account.email}>
+                  <Table.Td>{account.alias}</Table.Td>
+                  <Table.Td>{account.email}</Table.Td>
+                  <Table.Td>
+                    <Text size="sm">
+                      {account.devices
+                        .map((device) => formatDevice(googlePlay, device))
+                        .join(', ') || '–'}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    {pinnedAccounts.filter((email) => email === account.email).length}
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        )}
+      </Paper>
       <Paper withBorder p="md">
         <Title order={5} mb="sm">
           Variants whose last check failed

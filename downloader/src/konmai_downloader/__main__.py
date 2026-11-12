@@ -9,14 +9,16 @@ import shutil
 import sys
 from pathlib import Path
 
-from .config import Config, load_config
-from .credentials import Credentials
+from .config import Config, GoogleConfig, load_config
+from .credentials import Credentials, CredentialsError, GoogleAccount
 from .google_account import (
     GoogleLoginError,
     master_login,
     oauth_token_credential,
     oauth_token_instructions,
+    oldest_first,
     open_device,
+    password_credential,
 )
 from .host import HostClient, HostError, VariantTask
 from .runner import PassSummary, Runner
@@ -43,8 +45,25 @@ def build_parser() -> argparse.ArgumentParser:
     publish.add_argument("files", nargs="+", type=Path)
     publish.add_argument("--version-code", type=int, default=None)
 
-    commands.add_parser(
-        "login", help="sign in to Google with a browser oauth_token and check every device")
+    account = commands.add_parser("account", help="manage the Google accounts used for Play")
+    account_commands = account.add_subparsers(dest="account_command", required=True)
+    account_commands.add_parser("list", help="show every account and its checked-in devices")
+    add = account_commands.add_parser(
+        "add", help="sign in to a new account and check every default device in")
+    add.add_argument("alias", help="short name shown in the dashboard")
+    add.add_argument("email")
+    login = account_commands.add_parser(
+        "login", help="sign in to an existing account again, e.g. after its token was revoked")
+    login.add_argument("alias")
+    for signing_in in (add, login):
+        signing_in.add_argument(
+            "--password", action="store_true",
+            help="sign in with the account password instead of a browser oauth_token")
+    rename = account_commands.add_parser("rename", help="change the alias of an account")
+    rename.add_argument("alias")
+    rename.add_argument("new_alias")
+    remove = account_commands.add_parser("remove", help="forget an account and its token")
+    remove.add_argument("alias")
     return parser
 
 
@@ -52,35 +71,74 @@ def build_parser() -> argparse.ArgumentParser:
 probe_package = "com.android.chrome"
 
 
-def login(config: Config, credentials: Credentials) -> None:
-    google = config.google
-    if google is None:
-        raise SystemExit("config.json has no google section")
-    print(oauth_token_instructions)
-    oauth_token = getpass.getpass("oauth_token (input hidden): ").strip()
-    if not oauth_token:
-        raise SystemExit("no token given")
+def sign_in(google: GoogleConfig, email: str, use_password: bool) -> str:
+    """Asks for a one-time credential and returns the account's master token."""
+    if use_password:
+        secret = getpass.getpass(f"password for {email} (input hidden): ")
+        credential = password_credential(email, secret)
+    else:
+        print(oauth_token_instructions)
+        secret = getpass.getpass("oauth_token (input hidden): ").strip()
+        credential = oauth_token_credential(secret)
+    if not secret:
+        raise SystemExit("nothing given")
     try:
-        master_token = master_login(
-            google.email, oauth_token_credential(oauth_token), google.locale)
+        return master_login(email, credential, google.locale)
     except GoogleLoginError as error:
-        raise SystemExit(f"Google refused the token: {error}") from None
-    credentials.store_master_token(google.email, master_token)
-    print(f"signed in as {google.email}; master token stored in {credentials.path}")
+        raise SystemExit(f"Google refused the sign-in: {error}") from None
 
-    failed = False
-    for device in google.devices:
+
+def check_in_devices(google: GoogleConfig, credentials: Credentials, account: GoogleAccount) -> bool:
+    """Checks every default device in with the account; returns whether all of them work."""
+    working = True
+    for device in oldest_first(google.devices):
         try:
-            api = open_device(device, google.locale, google.timezone, google.email,
-                              master_token, credentials.gsf_id(device))
-            credentials.store_device(device, api.gsfId)
+            api = open_device(device, google.locale, google.timezone, account.email,
+                              account.master_token, account.gsf_ids.get(device))
+            credentials.store_device(account.email, device, api.gsfId)
             details = api.details(probe_package)["details"]["appDetails"]
             print(f"  {device}: ok (gsfId {api.gsfId:x}, "
                   f"{probe_package} {details['versionString']} visible)")
         except Exception as error:
-            failed = True
+            working = False
             print(f"  {device}: failed: {error}")
-    sys.exit(1 if failed else 0)
+    return working
+
+
+def manage_accounts(config: Config, arguments: argparse.Namespace) -> None:
+    credentials = Credentials(config.credentials_file)
+    command = arguments.account_command
+    if command == "list":
+        if not credentials.accounts:
+            print("no accounts; add one with `konmai-downloader account add ALIAS EMAIL`")
+        for account in credentials.accounts:
+            devices = ", ".join(sorted(account.gsf_ids)) or "no device checked in"
+            print(f"{account.alias}\t{account.email}\t{devices}")
+        return
+    if command == "rename":
+        credentials.rename(arguments.alias, arguments.new_alias)
+        print(f"renamed {arguments.alias} to {arguments.new_alias}")
+        return
+    if command == "remove":
+        credentials.remove(arguments.alias)
+        print(f"removed {arguments.alias}; variants pinned to it fail until another account is "
+              "chosen in the dashboard")
+        return
+    google = config.google
+    if google is None:
+        raise SystemExit("config.json has no google section")
+    if command == "add":
+        # Checked before asking for the one-time token so it is not wasted.
+        credentials.ensure_unused(arguments.alias, arguments.email)
+        master_token = sign_in(google, arguments.email, arguments.password)
+        credentials.add(arguments.alias, arguments.email, master_token)
+    else:
+        master_token = sign_in(google, credentials.find(arguments.alias).email,
+                               arguments.password)
+        credentials.replace_master_token(arguments.alias, master_token)
+    account = credentials.find(arguments.alias)
+    print(f"signed in as {account.email} ({account.alias}); token stored in {credentials.path}")
+    sys.exit(0 if check_in_devices(google, credentials, account) else 1)
 
 
 def find_task(host: HostClient, variant_id: int | None = None, package_name: str | None = None, slug: str | None = None) -> VariantTask:
@@ -115,8 +173,15 @@ def main() -> None:
         level=getattr(logging, config.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    if arguments.command == "login":
-        login(config, Credentials(config.credentials_file))
+    if config.google is not None and (config.google.email or config.google.password):
+        logging.warning("google.email and google.password are ignored; accounts are managed "
+                        "with `konmai-downloader account`")
+    if arguments.command == "account":
+        try:
+            manage_accounts(config, arguments)
+        except CredentialsError as error:
+            raise SystemExit(str(error)) from None
+        return
     config.staging_directory.mkdir(parents=True, exist_ok=True)
     host = HostClient(config.host.url, config.host.ingest_token)
     runner = Runner(config, host)

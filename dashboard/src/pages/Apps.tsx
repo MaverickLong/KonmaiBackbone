@@ -10,20 +10,59 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { appCreate } from 'konmai-shared';
+import { IconDeviceMobile, IconUser } from '@tabler/icons-react';
+import { appCreate, type GooglePlayView, type VariantView } from 'konmai-shared';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifications } from '@mantine/notifications';
-import { useApps, useCheckAll, useCreateApp } from '../api/hooks';
+import { useApps, useCheckAll, useCreateApp, useDownloader } from '../api/hooks';
 import { Loading } from '../components/common';
-import { formatRelative, zodErrors } from '../format';
+import { formatAccount, formatDevice, formatRelative, zodErrors } from '../format';
+
+// The Google Play device and account a variant is read with; "any" until a check found a pair.
+function Compatibility({
+  variant,
+  googlePlay,
+}: {
+  variant: VariantView;
+  googlePlay: GooglePlayView | null | undefined;
+}) {
+  if (variant.source.type !== 'googleplay') {
+    return null;
+  }
+  const { device, account } = variant.source;
+  return (
+    <Group gap={4} wrap="nowrap">
+      <Tooltip
+        label={device === undefined ? 'Each device is tried' : formatDevice(googlePlay, device)}
+      >
+        <Group gap={2} wrap="nowrap">
+          <IconDeviceMobile size={14} />
+          <Text size="xs" c={device === undefined ? 'dimmed' : undefined}>
+            {device ?? 'any'}
+          </Text>
+        </Group>
+      </Tooltip>
+      <Tooltip label={account ?? 'Each account is tried'}>
+        <Group gap={2} wrap="nowrap">
+          <IconUser size={14} />
+          <Text size="xs" c={account === undefined ? 'dimmed' : undefined}>
+            {account === undefined ? 'any' : formatAccount(googlePlay, account)}
+          </Text>
+        </Group>
+      </Tooltip>
+    </Group>
+  );
+}
 
 export function AppsPage() {
   const apps = useApps();
   const create = useCreateApp();
   const checkAll = useCheckAll();
+  const googlePlay = useDownloader().data?.googlePlay;
   const [adding, setAdding] = useState(false);
   const form = useForm({
     initialValues: { packageName: '', displayName: '' },
@@ -98,6 +137,7 @@ export function AppsPage() {
                         {variant.source.type}
                       </Badge>
                       <Text size="sm">{variant.activeRelease?.version ?? 'no release'}</Text>
+                      <Compatibility variant={variant} googlePlay={googlePlay} />
                       {variant.lastCheckStatus === 'failed' ? (
                         <Badge color="red" variant="light">
                           check failed

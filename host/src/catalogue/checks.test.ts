@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Variant } from '../db/entities.js';
-import { isCheckDue, nextCheckAt } from './checks.js';
+import { isCheckDue, nextCheckAt, recordCheckResult } from './checks.js';
 
 function variant(fields: Partial<Variant>): Variant {
   return {
@@ -32,5 +32,67 @@ describe('check schedule', () => {
       checkRequestedAt: new Date('2026-10-30T11:59:30Z'),
     });
     expect(isCheckDue(requested, now)).toBe(true);
+  });
+});
+
+describe('check results', () => {
+  const now = new Date('2026-11-09T12:00:00Z');
+  const playVariant = (fields: Partial<Variant> = {}) =>
+    variant({
+      source: { type: 'googleplay', device: 'walleye' },
+      lastCheckStatus: 'up_to_date',
+      checkRequestedAt: now,
+      ...fields,
+    });
+
+  it('saves the device and account the check worked with', () => {
+    const checked = playVariant();
+    const alert = recordCheckResult(
+      checked,
+      {
+        status: 'up_to_date',
+        alert: false,
+        compatibility: { device: 'crackling', account: 'a@gmail.com' },
+      },
+      now,
+    );
+    expect(alert).toBe(false);
+    expect(checked.source).toEqual({
+      type: 'googleplay',
+      device: 'crackling',
+      account: 'a@gmail.com',
+    });
+    expect(checked.checkRequestedAt).toBeNull();
+    expect(checked.lastCheckedAt).toBe(now);
+  });
+
+  it('leaves other sources alone', () => {
+    const checked = variant({ source: { type: 'arcaea' } });
+    recordCheckResult(
+      checked,
+      {
+        status: 'updated',
+        alert: false,
+        compatibility: { device: 'walleye', account: 'a@gmail.com' },
+      },
+      now,
+    );
+    expect(checked.source).toEqual({ type: 'arcaea' });
+  });
+
+  it('alerts once when a failure that needs the operator begins', () => {
+    const checked = playVariant();
+    const failure = {
+      status: 'failed',
+      alert: true,
+      error: 'walleye/main: item not found',
+    } as const;
+    expect(recordCheckResult(checked, failure, now)).toBe(true);
+    expect(checked.lastCheckError).toBe('walleye/main: item not found');
+    expect(recordCheckResult(checked, failure, now)).toBe(false);
+    recordCheckResult(checked, { status: 'up_to_date', alert: false }, now);
+    expect(checked.lastCheckError).toBeNull();
+    expect(recordCheckResult(checked, failure, now)).toBe(true);
+    expect(recordCheckResult(playVariant(), { ...failure, alert: false }, now)).toBe(false);
   });
 });

@@ -20,10 +20,11 @@ class HostConfig(CamelModel):
 
 
 class GoogleConfig(CamelModel):
-    email: str
-    # Optional fallback: Google refuses password (and app password) logins for many accounts,
-    # in which case `konmai-downloader login` with a browser oauth_token is the way in.
+    # Accounts now live in the credentials file and are managed with `konmai-downloader account`;
+    # these are still accepted so older config files load, but ignored.
+    email: str | None = None
     password: str | None = None
+    # Devices a variant that names none is tried with, oldest Android version first.
     devices: list[str] = Field(default_factory=lambda: ["crackling", "walleye"], min_length=1)
     locale: str = Field(default="en_US", pattern=r"^[a-z]{2}_[A-Z]{2}$")
     # Reported to Google at device check-in.

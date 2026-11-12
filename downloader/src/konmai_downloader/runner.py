@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from .config import Config
 from .credentials import Credentials
+from .google_account import device_profiles
 from .host import HostClient, HostError, VariantTask
 from .sources import SourceContext, SourceError, create_source, is_newer
 from .staging import ReleaseDirectory, StagedFile
@@ -38,6 +39,24 @@ class Runner:
         self.config = config
         self.host = host
         self.context = SourceContext(config, Credentials(config.credentials_file))
+        self.accounts_reported = False
+
+    def sync_accounts(self) -> None:
+        """Reloads accounts an `account` command changed and tells the host about them."""
+        changed = self.context.credentials.reload_if_changed()
+        if self.accounts_reported and not changed:
+            return
+        google = self.config.google
+        try:
+            self.host.report_google_play(
+                self.context.credentials.accounts,
+                device_profiles(),
+                [] if google is None else google.devices,
+            )
+            self.accounts_reported = True
+        except HostError as error:
+            self.accounts_reported = False
+            logger.warning("reporting Google accounts failed: %s", error)
 
     def run_pass(self, tasks: list[VariantTask] | None = None) -> PassSummary:
         """Checks the given variants, or every enabled variant when none are given."""
@@ -59,6 +78,7 @@ class Runner:
     def process(self, task: VariantTask, summary: PassSummary) -> None:
         label = f"{task.package_name}/{task.slug}"
         summary.checked += 1
+        self.sync_accounts()
         self.host.heartbeat("checking", task.id)
         try:
             source = create_source(task.source, self.context)
@@ -68,7 +88,8 @@ class Runner:
                 return
             if not is_newer(remote, task):
                 self.host.report_check(
-                    task, "up_to_date", remote_version=remote.version, remote_version_code=remote.version_code
+                    task, "up_to_date", remote_version=remote.version,
+                    remote_version_code=remote.version_code, compatibility=remote.compatibility,
                 )
                 return
             logger.info("%s: %s -> %s, downloading", label, task.active_version, remote.version)
@@ -85,13 +106,15 @@ class Runner:
             directory.discard()
             summary.updated += 1
             self.host.report_check(
-                task, "updated", remote_version=remote.version, remote_version_code=remote.version_code
+                task, "updated", remote_version=remote.version,
+                remote_version_code=remote.version_code, compatibility=remote.compatibility,
             )
         except (SourceError, HostError, ValueError, KeyError, OSError) as error:
             summary.failed += 1
             summary.failures.append(f"{label}: {error}")
             logger.error("%s: %s", label, error)
-            self.host.report_check(task, "failed", error=str(error))
+            self.host.report_check(task, "failed", error=str(error),
+                                   alert=isinstance(error, SourceError) and error.alert)
         except Exception as error:
             summary.failed += 1
             summary.failures.append(f"{label}: {error}")

@@ -28,10 +28,14 @@ export const sourceTypes = ['googleplay', 'github', 'arcaea', 'manual'] as const
 export const sourceType = z.enum(sourceTypes);
 export type SourceType = z.infer<typeof sourceType>;
 
+// `device` and `account` (an email) pin what the downloader reads Play with; it saves both once
+// a pair works, and tries everything that is not pinned in turn.
 export const googlePlaySource = z.looseObject({
   type: z.literal('googleplay'),
   packageName: packageName.optional(),
   devices: z.array(z.string().min(1)).min(1).optional(),
+  device: z.string().min(1).optional(),
+  account: z.string().min(1).optional(),
   locale: z.string().min(1).optional(),
   timezone: z.string().min(1).optional(),
   expansionFiles: z.boolean().optional(),

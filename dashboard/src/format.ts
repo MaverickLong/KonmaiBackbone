@@ -3,6 +3,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
+import type { GooglePlayView } from 'konmai-shared';
+
 export { formatBytes } from 'konmai-shared';
 
 export const gigabyte = 1_000_000_000;
@@ -39,3 +41,23 @@ export const zodErrors = (
   issues: { path: PropertyKey[]; message: string }[],
 ): Record<string, string> =>
   Object.fromEntries(issues.map((issue) => [issue.path.join('.'), issue.message]));
+
+// Accounts are stored by email; the downloader reports the alias the operator gave each one.
+export function formatAccount(
+  googlePlay: GooglePlayView | null | undefined,
+  email: string,
+): string {
+  return googlePlay?.accounts.find((account) => account.email === email)?.alias ?? email;
+}
+
+export function formatDevice(
+  googlePlay: GooglePlayView | null | undefined,
+  codename: string,
+): string {
+  const profile = googlePlay?.devices.find((device) => device.codename === codename);
+  if (profile === undefined) {
+    return codename;
+  }
+  const apiLevel = profile.apiLevel === null ? '' : `, API ${profile.apiLevel}`;
+  return `${codename} (${profile.name}${apiLevel})`;
+}

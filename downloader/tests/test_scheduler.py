@@ -28,6 +28,10 @@ class FakeHost:
 class FakeRunner:
     def __init__(self):
         self.passes = []
+        self.account_syncs = 0
+
+    def sync_accounts(self):
+        self.account_syncs += 1
 
     def run_pass(self, tasks=None):
         self.passes.append([task.id for task in tasks])
@@ -55,3 +59,4 @@ def test_nothing_due_only_reports_idle(monkeypatch, tmp_path):
     host, runner = run_one_poll(monkeypatch, tmp_path, [task(1, False)])
     assert runner.passes == []
     assert host.heartbeats == ["idle", "idle"]
+    assert runner.account_syncs == 1

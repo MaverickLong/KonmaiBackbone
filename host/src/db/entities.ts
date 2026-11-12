@@ -1,5 +1,5 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/core';
-import type { Source } from 'konmai-shared';
+import type { GooglePlayView, Source } from 'konmai-shared';
 
 export const App = defineEntity({
   name: 'App',
@@ -195,6 +195,7 @@ export const DownloaderState = defineEntity({
     passStartedAt: p.datetime().nullable(),
     passFinishedAt: p.datetime().nullable(),
     passSummary: p.text().nullable(),
+    googlePlay: p.json<GooglePlayView>().nullable(),
   },
 });
 export type DownloaderState = InferEntity<typeof DownloaderState>;

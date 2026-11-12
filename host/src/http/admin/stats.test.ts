@@ -13,6 +13,7 @@ function state(lastSeenAt: Date | null): DownloaderState {
     passStartedAt: null,
     passFinishedAt: null,
     passSummary: null,
+    googlePlay: null,
   } as DownloaderState;
 }
 

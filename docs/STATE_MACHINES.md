@@ -159,9 +159,16 @@ Since then the host side of H1, H2, H5, H7 and H8 has been made explicit; each e
 
 ### D3. Google sign-in
 
-- Subject: `Credentials` (`downloader/src/konmai_downloader/credentials.py`) and `GooglePlaySource` sessions.
-- States: signed out (no master token) → master token stored → device checked in (`gsfId` stored per device) → Play session open (cached per device/locale/timezone in `play_sessions`) → session failed (dropped from the cache, re-minted next time) → device re-checked-in once when opening it fails with a stored `gsfId`.
-- Hazard: a revoked master token is never refreshed automatically; every variant fails on every device until `konmai-downloader login` is run again.
+- Subject: `Credentials` (`downloader/src/konmai_downloader/credentials.py`) and `GooglePlaySource` sessions, per account.
+- States: account added (`account add`, master token stored) → device checked in with that account (`gsfId` stored per account and device) → Play session open (cached per account/device/locale/timezone in `play_sessions`) → session failed (dropped from the cache, re-minted next time) → device re-checked-in once when opening it fails with a stored `gsfId`. `account login` replaces the token and keeps the check-ins; `account remove` drops both.
+- Writers: the `account` commands and the running downloader both write the file; each change is made under a lock on a fresh read and replaces the file atomically, and the downloader reloads it when its inode, mtime or size change.
+- Hazard: a revoked master token is never refreshed automatically; the account fails on every device until `konmai-downloader account login` is run again. Variants without a pinned account move on to the next account.
+
+### D3a. Google Play combination per variant
+
+- Subject: `device` and `account` in a `googleplay` source (`GooglePlaySource._settings`, `recordCheckResult` in `host/src/catalogue/checks.ts`).
+- States: searching (neither set: every device × account pair, devices oldest first) → partly pinned (one set by the operator: only the other is iterated) → pinned (both set; saved by the host from the `compatibility` of the first successful check, or by the operator) → pinned and failing (no other pair is tried; the check result carries `alert`, and the host e-mails on the transition from not failing to failing) → back to pinned on the next success, or to searching / partly pinned when the operator clears a field.
+- Hazard: a fetch may succeed with a later pair than the check did (the listing is readable but the download is not); the pair saved is the one the fetch used.
 
 ### D4. Staging directory
 

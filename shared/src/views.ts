@@ -1,4 +1,5 @@
 import type { FileKind, ReleaseState, Source } from './catalogue.js';
+import type { GooglePlayReport } from './api.js';
 import type { SyncOutcome } from './protocol.js';
 
 export type NodeStatus = 'online' | 'faulty' | 'unknown';
@@ -178,6 +179,12 @@ export interface DownloaderView {
   passStartedAt: string | null;
   passFinishedAt: string | null;
   passSummary: string | null;
+  // Accounts and device profiles the downloader reported; null until it first did.
+  googlePlay: GooglePlayView | null;
+}
+
+export interface GooglePlayView extends GooglePlayReport {
+  reportedAt: string;
 }
 
 export interface SettingsView {

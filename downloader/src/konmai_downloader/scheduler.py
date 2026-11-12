@@ -23,6 +23,7 @@ def run_forever(config: Config, host: HostClient, runner: Runner) -> None:
     host.heartbeat("idle")
     while True:
         try:
+            runner.sync_accounts()
             due = [task for task in host.variants() if task.check_due]
             if due:
                 runner.run_pass(due)

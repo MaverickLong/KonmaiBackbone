@@ -3,7 +3,6 @@
   "stagingDirectory": "/srv/konmai/storage/staging",
   "credentialsFile": "/srv/konmai/downloader-credentials.json",
   "google": {
-    "email": "account@gmail.com",
     "devices": ["crackling", "walleye"],
     "locale": "ja_JP",
     "timezone": "Asia/Tokyo"

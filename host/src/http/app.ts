@@ -6,7 +6,7 @@ import { catalogueRouter } from './catalogue.js';
 import type { Context } from './context.js';
 import { downloadRouter, type DownloadDependencies } from './download.js';
 import { errorHandler } from './errors.js';
-import { ingestRouter } from './ingest.js';
+import { ingestRouter, type IngestDependencies } from './ingest.js';
 import { nodeAuthRouter, storeRouter } from './nodeAuth.js';
 import { appsRouter } from './admin/apps.js';
 import { nodesRouter, type NodeDependencies } from './admin/nodes.js';
@@ -16,7 +16,7 @@ import { statsRouter, type StatsDependencies } from './admin/stats.js';
 import { variantsRouter } from './admin/variants.js';
 
 export interface AppDependencies
-  extends DownloadDependencies, StatsDependencies, NodeDependencies {}
+  extends DownloadDependencies, StatsDependencies, NodeDependencies, IngestDependencies {}
 
 export function createApp(context: Context, dependencies: AppDependencies): Express {
   const app = express();
@@ -44,7 +44,7 @@ export function createApp(context: Context, dependencies: AppDependencies): Expr
   admin.use('/nodes', nodesRouter(context, dependencies));
   admin.use('/', statsRouter(context, dependencies));
   app.use('/api/admin', admin);
-  app.use('/api/ingest', ingestRouter(context));
+  app.use('/api/ingest', ingestRouter(context, dependencies));
   app.use('/api/internal/node-auth', nodeAuthRouter(context));
   app.use('/store', storeRouter(context));
   app.use('/icons', express.static(context.store.iconsDirectory, { maxAge: '1h' }));

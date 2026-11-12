@@ -1,99 +1,134 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, TypeVar
 
 from gpapi.googleplay import GooglePlayAPI
 
-from ..google_account import GoogleLoginError, master_login, open_device, password_credential
+from ..credentials import GoogleAccount
+from ..google_account import oldest_first, open_device
 from ..host import VariantTask
 from ..staging import ReleaseDirectory, StagedFile, sanitize_version
-from .base import RemoteVersion, SourceContext, SourceError
+from .base import Compatibility, RemoteVersion, SourceContext, SourceError
 
 logger = logging.getLogger(__name__)
 
+Result = TypeVar("Result")
+
+add_account_hint = "add one with `konmai-downloader account add`"
+
+
+@dataclass
+class PlaySettings:
+    package_name: str
+    # Every device and account pair to try, devices oldest first, each with every account.
+    combinations: list[Compatibility]
+    # The variant names both a device and an account: only that pair is tried.
+    pinned: bool
+    locale: str
+    timezone: str
+    expansion_files: bool
+
 
 class GooglePlaySource:
-    """Talks to Google Play through one session per configured device, trying devices in order."""
+    """Talks to Google Play with one session per account and device.
+
+    The variant's source may name a `device` and an `account` (by email); the downloader saves
+    them there once a pair works. Whatever is not named is tried in turn.
+    """
 
     def __init__(self, context: SourceContext) -> None:
         if context.config.google is None:
-            raise SourceError("google account is not configured")
+            raise SourceError("google is not configured")
         self.google = context.config.google
         self.credentials = context.credentials
         self.sessions = context.play_sessions
 
-    def _master_token(self) -> str:
-        token = self.credentials.master_token_for(self.google.email)
-        if token is not None:
-            return token
-        if not self.google.password:
-            raise SourceError("not signed in to Google; run `konmai-downloader login` once")
-        try:
-            token = master_login(
-                self.google.email,
-                password_credential(self.google.email, self.google.password),
-                self.google.locale,
-            )
-        except (GoogleLoginError, OSError) as error:
-            raise SourceError(f"google login failed: {error}") from error
-        self.credentials.store_master_token(self.google.email, token)
-        return token
-
-    def _api(self, device: str, locale: str, timezone: str) -> GooglePlayAPI:
-        key = f"{device}|{locale}|{timezone}"
+    def _api(self, account: GoogleAccount, device: str, locale: str, timezone: str) -> GooglePlayAPI:
+        key = f"{account.email}|{device}|{locale}|{timezone}"
         api = self.sessions.get(key)
         if api is not None:
             return api
-        master_token = self._master_token()
-        gsf_id = self.credentials.gsf_id(device)
+        gsf_id = account.gsf_ids.get(device)
         try:
-            api = open_device(device, locale, timezone,
-                              self.google.email, master_token, gsf_id)
+            api = open_device(device, locale, timezone, account.email, account.master_token, gsf_id)
         except Exception as error:
             if gsf_id is None:
-                raise SourceError(f"google login failed for device {device}: {error}") from error
+                raise SourceError(f"google login failed: {error}") from error
             # The stored check-in may have been revoked; check the device in again once.
-            logger.warning(
-                "session for %s failed (%s), checking the device in again", device, error)
-            self.credentials.forget_device(device)
+            logger.warning("session for %s with %s failed (%s), checking the device in again",
+                           device, account.alias, error)
+            self.credentials.forget_device(account.email, device)
             try:
-                api = open_device(device, locale, timezone, self.google.email, master_token, None)
+                api = open_device(device, locale, timezone, account.email,
+                                  account.master_token, None)
             except Exception as retry_error:
-                raise SourceError(
-                    f"google login failed for device {device}: {retry_error}") from retry_error
+                raise SourceError(f"google login failed: {retry_error}") from retry_error
         if gsf_id != api.gsfId:
-            self.credentials.store_device(device, api.gsfId)
+            self.credentials.store_device(account.email, device, api.gsfId)
         self.sessions[key] = api
         return api
 
-    def _settings(self, task: VariantTask) -> tuple[str, list[str], str, str, bool]:
+    def _settings(self, task: VariantTask) -> PlaySettings:
         source: dict[str, Any] = task.source
-        return (
-            str(source.get("packageName") or task.package_name),
-            list(source.get("devices") or self.google.devices),
-            str(source.get("locale") or self.google.locale),
-            str(source.get("timezone") or self.google.timezone),
-            bool(source.get("expansionFiles", True)),
+        device = source.get("device")
+        email = source.get("account")
+        pinned = bool(device and email)
+        devices = [str(device)] if device else oldest_first(
+            list(source.get("devices") or self.google.devices))
+        if email:
+            if self.credentials.find_by_email(str(email)) is None:
+                raise SourceError(
+                    f"account {email} is not signed in; {add_account_hint} or pick another "
+                    "account for this variant", alert=pinned)
+            emails = [str(email)]
+        else:
+            emails = [account.email for account in self.credentials.accounts]
+            if not emails:
+                raise SourceError(f"no Google account; {add_account_hint}")
+        return PlaySettings(
+            package_name=str(source.get("packageName") or task.package_name),
+            combinations=[Compatibility(device, email) for device in devices for email in emails],
+            pinned=pinned,
+            locale=str(source.get("locale") or self.google.locale),
+            timezone=str(source.get("timezone") or self.google.timezone),
+            expansion_files=bool(source.get("expansionFiles", True)),
         )
 
-    def _first_working(self, task: VariantTask, action):
-        package_name, devices, locale, timezone, _ = self._settings(task)
+    def _first_working(
+        self,
+        settings: PlaySettings,
+        action: Callable[[GooglePlayAPI, str], Result],
+        start: Compatibility | None = None,
+    ) -> tuple[Compatibility, Result]:
+        """Runs `action` with each combination from `start` on until one succeeds."""
+        combinations = settings.combinations
+        if start in combinations:
+            combinations = combinations[combinations.index(start):]
         failures = []
-        for device in devices:
+        for combination in combinations:
+            account = self.credentials.find_by_email(combination.account)
+            if account is None:
+                continue
+            label = f"{combination.device}/{account.alias}"
             try:
-                return device, action(self._api(device, locale, timezone), package_name)
+                api = self._api(account, combination.device, settings.locale, settings.timezone)
+                return combination, action(api, settings.package_name)
             except SourceError as error:
-                failures.append(f"{device}: {error}")
+                failures.append(f"{label}: {error}")
             except Exception as error:
-                failures.append(f"{device}: {error}")
-                logger.info("device %s failed for %s: %s", device, package_name, error)
+                failures.append(f"{label}: {error}")
+                logger.info("%s failed for %s: %s", label, settings.package_name, error)
                 # Play tokens expire; the next attempt mints a fresh one from the master token.
-                self.sessions.pop(f"{device}|{locale}|{timezone}", None)
-        raise SourceError("; ".join(failures))
+                self.sessions.pop(
+                    f"{account.email}|{combination.device}|{settings.locale}|{settings.timezone}",
+                    None)
+        raise SourceError("; ".join(failures) or "no usable account", alert=settings.pinned)
 
     def check(self, task: VariantTask) -> RemoteVersion | None:
-        def read_details(api: GooglePlayAPI, package_name: str):
+        def read_details(api: GooglePlayAPI, package_name: str) -> RemoteVersion:
             details = api.details(package_name)
             app_details = details["details"]["appDetails"]
             return RemoteVersion(
@@ -101,18 +136,22 @@ class GooglePlaySource:
                 version_code=int(app_details["versionCode"]),
             )
 
-        _, remote = self._first_working(task, read_details)
+        combination, remote = self._first_working(self._settings(task), read_details)
+        remote.compatibility = combination
         return remote
 
     def fetch(self, task: VariantTask, remote: RemoteVersion, directory: ReleaseDirectory) -> list[StagedFile]:
-        package_name, _, _, _, expansion_files = self._settings(task)
+        settings = self._settings(task)
 
         def start_download(api: GooglePlayAPI, name: str):
-            return api.download(name, versionCode=remote.version_code, expansion_files=expansion_files)
+            return api.download(name, versionCode=remote.version_code,
+                                expansion_files=settings.expansion_files)
 
-        _, download = self._first_working(task, start_download)
+        # Combinations before the one the check succeeded with already failed to read the listing.
+        remote.compatibility, download = self._first_working(
+            settings, start_download, remote.compatibility)
         staged: list[StagedFile] = []
-        base_name = f"{package_name}_{remote.version}"
+        base_name = f"{settings.package_name}_{remote.version}"
         splits = download.get("splits") or []
         if splits:
             base = directory.write_stream("base.apk", download["file"]["data"])

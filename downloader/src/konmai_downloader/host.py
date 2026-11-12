@@ -5,11 +5,16 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 
 from .staging import StagedFile
+
+if TYPE_CHECKING:
+    from .credentials import GoogleAccount
+    from .google_account import DeviceProfile
+    from .sources import Compatibility
 
 logger = logging.getLogger(__name__)
 
@@ -111,10 +116,15 @@ class HostClient:
         error: str | None = None,
         remote_version: str | None = None,
         remote_version_code: int | None = None,
+        compatibility: Compatibility | None = None,
+        alert: bool = False,
     ) -> None:
-        payload: dict[str, Any] = {"status": status}
+        payload: dict[str, Any] = {"status": status, "alert": alert}
         if error is not None:
             payload["error"] = error[:4000]
+        if compatibility is not None:
+            payload["compatibility"] = {
+                "device": compatibility.device, "account": compatibility.account}
         if remote_version is not None:
             payload["remoteVersion"] = remote_version
         if remote_version_code is not None:
@@ -124,6 +134,26 @@ class HostClient:
         if response.status_code >= 400:
             logger.warning("reporting check result failed: %s %s",
                            response.status_code, response.text)
+
+    def report_google_play(
+        self, accounts: list[GoogleAccount], devices: list[DeviceProfile], default_devices: list[str]
+    ) -> None:
+        """Tells the host which accounts and device profiles the dashboard can offer."""
+        payload = {
+            "accounts": [
+                {"alias": account.alias, "email": account.email,
+                 "devices": sorted(account.gsf_ids)}
+                for account in accounts
+            ],
+            "devices": [
+                {"codename": device.codename, "name": device.name, "apiLevel": device.api_level}
+                for device in devices
+            ],
+            "defaultDevices": default_devices,
+        }
+        response = self._request("PUT", "/api/ingest/google-play", json=payload)
+        if response.status_code >= 400:
+            raise HostError(response.status_code, response.text)
 
     def heartbeat(
         self,

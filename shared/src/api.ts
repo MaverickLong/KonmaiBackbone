@@ -119,12 +119,44 @@ export type IngestRelease = z.infer<typeof ingestRelease>;
 
 export const checkStatuses = ['up_to_date', 'updated', 'failed'] as const;
 export const checkStatus = z.enum(checkStatuses);
+export const compatibility = z.object({
+  device: z.string().min(1).max(100),
+  account: z.string().min(1).max(320),
+});
 export const checkResult = z.object({
   status: checkStatus,
   error: z.string().max(4000).optional(),
   remoteVersion: z.string().max(200).optional(),
   remoteVersionCode: z.number().int().optional(),
+  // The Google Play device and account the check succeeded with; saved into the source.
+  compatibility: compatibility.optional(),
+  // The failure needs the operator, e.g. the pinned device and account stopped working.
+  alert: z.boolean().default(false),
 });
+export type CheckResult = z.infer<typeof checkResult>;
+
+export const googlePlayReport = z.object({
+  accounts: z
+    .array(
+      z.object({
+        alias: z.string().min(1).max(100),
+        email: z.string().min(1).max(320),
+        devices: z.array(z.string().min(1).max(100)),
+      }),
+    )
+    .max(100),
+  devices: z
+    .array(
+      z.object({
+        codename: z.string().min(1).max(100),
+        name: z.string().max(200),
+        apiLevel: z.number().int().nullable(),
+      }),
+    )
+    .max(1000),
+  defaultDevices: z.array(z.string().min(1).max(100)).max(100),
+});
+export type GooglePlayReport = z.infer<typeof googlePlayReport>;
 
 export const downloaderPhases = ['idle', 'checking', 'downloading'] as const;
 export const downloaderPhase = z.enum(downloaderPhases);

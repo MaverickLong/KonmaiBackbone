@@ -61,6 +61,7 @@ export function downloaderView(
     passStartedAt: state.passStartedAt?.toISOString() ?? null,
     passFinishedAt: state.passFinishedAt?.toISOString() ?? null,
     passSummary: state.passSummary ?? null,
+    googlePlay: state.googlePlay ?? null,
   };
 }
 

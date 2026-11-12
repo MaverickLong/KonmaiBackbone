@@ -103,25 +103,41 @@ sudo -u konmai uv run python scripts/generate_protobuf.py
 Create `/etc/konmai/downloader.json` from `downloader/config.example.json`: the host URL is the
 backend's loopback address, `ingestToken` must equal the host's, `stagingDirectory` must be
 `<host storageDirectory>/staging` (same filesystem as the store, files are moved with `rename`),
-and `google` holds the Play account's email, the device codenames to try in order, a locale
-such as `ja_JP` and an IANA timezone such as `Asia/Tokyo`. Device codenames come from the
+and `google` holds the default device codenames to try (oldest Android version first, whatever
+order they are listed in), a locale such as `ja_JP` and an IANA timezone such as `Asia/Tokyo`.
+Device codenames come from the
 submodule's `gpapi/device.properties` (up to `walleye`, Android 9) plus the newer profiles in
 `downloader/src/gpapi/devices.properties`: `op_8_pro` (Android 10), `sm_s20_plus` (Android 13)
 and `nothing_p1` (Android 14).
 
-Then sign in to Google once. Google refuses password and app-password logins for many accounts
-(`BadAuthentication`), so the downloader signs in with a one-time browser token instead:
+Then add at least one Google account, each under a short alias the dashboard shows. Google
+refuses password and app-password logins for many accounts (`BadAuthentication`), so the
+downloader signs in with a one-time browser token instead:
 
 ```sh
-sudo -u konmai uv run konmai-downloader --config /etc/konmai/downloader.json login
+D="sudo -u konmai uv run konmai-downloader --config /etc/konmai/downloader.json"
+$D account add main player@gmail.com     # --password signs in with the password instead
+$D account list
+$D account login main                    # again, after Google revoked the token
+$D account rename main primary
+$D account remove primary
 ```
 
-The command explains how to copy the `oauth_token` cookie from
+`account add` explains how to copy the `oauth_token` cookie from
 `https://accounts.google.com/EmbeddedSetup`, exchanges it for a long-lived master token stored in
-`credentialsFile`, checks every configured device in with Google, and reads one Play listing per
-device to prove the session works. Run it again only if Google revokes the master token, for
-example after a password change. A `google.password` is still accepted as a fallback for
-accounts where Google allows it, but it is not needed.
+`credentialsFile`, checks every default device in with Google, and reads one Play listing per
+device to prove the session works. The running downloader picks up account changes within
+`pollSeconds` and reports them to the host, where the **Downloader** page lists them. A
+credentials file written by the old single-account `login` command is read as one account whose
+alias is the part of the email before `@`; `google.email` and `google.password` are ignored.
+
+Each Google Play variant tries every device (oldest Android version first) with every account
+(in the order they were added): `(dev1, acc1)`, `(dev1, acc2)`, `(dev2, acc1)`, … The first pair
+that works is saved as the variant's **Device** and **Account** in the dashboard and is used from
+then on; it is shown per variant on the **Apps** page. With only one of the two set, only the
+other is tried in turn. With both set, a failure is not retried with other pairs: the host
+e-mails once when the failures begin, and clearing either field in the variant form starts the
+search again.
 
 `systemctl enable --now konmai-downloader` starts the loop. Every `pollSeconds` it asks the
 host which variants are due and checks only those. Each variant's interval is set in the

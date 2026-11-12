@@ -7,7 +7,10 @@ token alone: an ac2dm token for the device check-in and an androidmarket token f
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import requests
+from gpapi import config as device_config
 from gpapi.googleplay import AuthHTTPAdapter, GooglePlayAPI
 
 auth_url = "https://android.clients.google.com/auth"
@@ -89,7 +92,7 @@ def master_login(email: str, credential: dict[str, str], locale: str) -> str:
         return token
     error = values.get("error") or f"HTTP {response.status_code} without a token"
     if error == "BadAuthentication" and "EncryptedPasswd" in credential:
-        error += " (Google refuses password logins for this account; use `konmai-downloader login`)"
+        error += " (Google refuses password logins for this account; use `konmai-downloader account add` without --password)"
     elif error == "NeedsBrowser":
         error += f" (finish the sign-in in a browser: {values.get('url', embedded_setup_url)})"
     raise GoogleLoginError(error)
@@ -120,3 +123,30 @@ def open_device(
                         "androidmarket", "com.android.vending"))
     api.uploadDeviceConfig()
     return api
+
+
+@dataclass
+class DeviceProfile:
+    codename: str
+    name: str
+    api_level: int | None
+
+
+def device_profiles() -> list[DeviceProfile]:
+    profiles = []
+    for codename in device_config.config.sections():
+        section = device_config.config[codename]
+        api_level = section.get("build.version.sdk_int")
+        profiles.append(DeviceProfile(
+            codename,
+            section.get("userreadablename", codename),
+            int(api_level) if api_level and api_level.isdigit() else None,
+        ))
+    return profiles
+
+
+def oldest_first(devices: list[str]) -> list[str]:
+    """Orders device codenames by Android API level; unknown ones keep their place at the end."""
+    api_levels = {profile.codename: profile.api_level for profile in device_profiles()}
+    return sorted(devices, key=lambda device: (api_levels.get(device) is None,
+                                               api_levels.get(device) or 0))

@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from .arcaea import ArcaeaSource
-from .base import RemoteVersion, Source, SourceContext, SourceError, is_newer
+from .base import Compatibility, RemoteVersion, Source, SourceContext, SourceError, is_newer
 from .github import GitHubSource
 from .googleplay import GooglePlaySource
 from .manual import ManualSource
 
 __all__ = [
+    "Compatibility",
     "RemoteVersion",
     "Source",
     "SourceContext",

@@ -6,6 +6,7 @@ import {
   Stack,
   Switch,
   TagsInput,
+  Text,
   TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -18,7 +19,8 @@ import {
   type Source,
   type VariantView,
 } from 'konmai-shared';
-import { formatInterval, zodErrors } from '../format';
+import { useDownloader } from '../api/hooks';
+import { formatAccount, formatDevice, formatInterval, zodErrors } from '../format';
 
 interface VariantFormValues {
   slug: string;
@@ -28,6 +30,8 @@ interface VariantFormValues {
   type: Source['type'];
   packageName: string;
   devices: string[];
+  device: string | null;
+  account: string | null;
   locale: string;
   timezone: string;
   repository: string;
@@ -45,6 +49,8 @@ function valuesFrom(variant?: VariantView): VariantFormValues {
     type: (source['type'] as Source['type']) ?? 'googleplay',
     packageName: String(source['packageName'] ?? ''),
     devices: Array.isArray(source['devices']) ? (source['devices'] as string[]) : [],
+    device: typeof source['device'] === 'string' ? source['device'] : null,
+    account: typeof source['account'] === 'string' ? source['account'] : null,
     locale: String(source['locale'] ?? ''),
     timezone: String(source['timezone'] ?? ''),
     repository: String(source['repository'] ?? ''),
@@ -66,6 +72,8 @@ function toSource(
           'type',
           'packageName',
           'devices',
+          'device',
+          'account',
           'locale',
           'timezone',
           'expansionFiles',
@@ -82,6 +90,8 @@ function toSource(
         type: 'googleplay',
         ...(values.packageName ? { packageName: values.packageName } : {}),
         ...(values.devices.length > 0 ? { devices: values.devices } : {}),
+        ...(values.device ? { device: values.device } : {}),
+        ...(values.account ? { account: values.account } : {}),
         ...(values.locale ? { locale: values.locale } : {}),
         ...(values.timezone ? { timezone: values.timezone } : {}),
       };
@@ -98,6 +108,19 @@ function toSource(
   }
 }
 
+// A saved value the downloader no longer reports must stay selectable, or the select would show it
+// as empty and saving would silently clear it.
+function withCurrent(
+  options: { value: string; label: string }[],
+  current: string | null,
+  suffix = '',
+): { value: string; label: string }[] {
+  if (current === null || options.some((option) => option.value === current)) {
+    return options;
+  }
+  return [...options, { value: current, label: `${current}${suffix}` }];
+}
+
 export function VariantForm({
   variant,
   submitting,
@@ -109,6 +132,7 @@ export function VariantForm({
 }) {
   const creating = variant === undefined;
   const original = (variant?.source ?? {}) as Record<string, unknown>;
+  const googlePlay = useDownloader().data?.googlePlay;
   const form = useForm<VariantFormValues>({
     initialValues: valuesFrom(variant),
     validate: (values) => {
@@ -173,9 +197,51 @@ export function VariantForm({
               description="Only when the Play listing uses a different id than the app"
               {...form.getInputProps('packageName')}
             />
+            <Group grow align="flex-start">
+              <Select
+                label="Device"
+                description="Saved after the first successful check; empty tries each device"
+                placeholder="any device"
+                searchable
+                clearable
+                data={withCurrent(
+                  [...(googlePlay?.devices ?? [])]
+                    .sort((first, second) => (first.apiLevel ?? 0) - (second.apiLevel ?? 0))
+                    .map((device) => ({
+                      value: device.codename,
+                      label: formatDevice(googlePlay, device.codename),
+                    })),
+                  form.values.device,
+                )}
+                {...form.getInputProps('device')}
+              />
+              <Select
+                label="Account"
+                description="Saved after the first successful check; empty tries each account"
+                placeholder="any account"
+                clearable
+                data={withCurrent(
+                  (googlePlay?.accounts ?? []).map((account) => ({
+                    value: account.email,
+                    label: `${account.alias} (${account.email})`,
+                  })),
+                  form.values.account,
+                  ' (not signed in)',
+                )}
+                {...form.getInputProps('account')}
+              />
+            </Group>
+            {form.values.device && form.values.account ? (
+              <Text size="xs" c="dimmed">
+                Only {formatDevice(googlePlay, form.values.device)} with{' '}
+                {formatAccount(googlePlay, form.values.account)} is used. If it fails, an e-mail is
+                sent instead of trying other combinations; clear either field to search again.
+              </Text>
+            ) : null}
             <TagsInput
-              label="Devices"
-              description="Device codenames tried in order; empty uses the downloader default"
+              label="Devices to try"
+              description={`Used when no device is set, oldest Android version first; empty uses the downloader default (${googlePlay?.defaultDevices.join(', ') || 'unknown'})`}
+              data={(googlePlay?.devices ?? []).map((device) => device.codename)}
               {...form.getInputProps('devices')}
             />
             <Group grow>
