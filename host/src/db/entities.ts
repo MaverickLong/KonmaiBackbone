@@ -67,7 +67,7 @@ export const Node = defineEntity({
   properties: {
     id: p.integer().primary().autoincrement(),
     name: p.string(),
-    domain: p.string().unique(),
+    domain: p.string(),
     countries: p.json<string[]>(),
     catchAll: p.boolean().default(false),
     weight: p.integer().default(100),
@@ -88,7 +88,18 @@ export const Node = defineEntity({
     storageTotalBytes: p.integer().nullable(),
     storageFreeBytes: p.integer().nullable(),
     createdAt: p.datetime().onCreate(() => new Date()),
+    // Deleting keeps the row, disabled, so the traffic and downloads the node served stay
+    // attributed to it.
+    deletedAt: p.datetime().nullable(),
   },
+  // A deleted node no longer claims its domain.
+  uniques: [
+    {
+      name: 'node_domain_unique',
+      expression:
+        'create unique index `node_domain_unique` on `node` (`domain`) where `deleted_at` is null',
+    },
+  ],
 });
 export type Node = InferEntity<typeof Node>;
 

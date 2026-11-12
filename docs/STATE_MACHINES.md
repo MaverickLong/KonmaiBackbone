@@ -44,6 +44,14 @@ Since then the host side of H1, H2, H5, H7 and H8 has been made explicit; each e
 - Derived state: a node is _routable_ when `enabled`, `status === 'online'` and not exhausted by the same `quotaView` the dashboard shows (`RoutableNodes.list`), cached for 30 s and dropped on every probe transition and node edit.
 - Hazards: `lastEmailAt` is in memory, so a host restart re-arms the throttle. The probe reads `/files/health`, a file the agent writes at start (`Storage.prepare`) and nginx serves, so a node whose agent is dead still counts as `online`; that is intended (nginx keeps serving) but means `status` says nothing about the agent, and a node whose agent has never run is `faulty` until it does.
 
+### H2a. Node existence
+
+- Subject: `Node.deletedAt` (`host/src/db/entities.ts`).
+- States: present → deleted (terminal; the row is never removed).
+- Transitions: `DELETE /nodes/:id` (`host/src/http/admin/nodes.ts`) disconnects the agent, sets `deletedAt`, disables the node, replaces its token hash and deletes its holdings. Its traffic, downloads and events keep their rows, so statistics still name it; the dashboard appends "(deleted)".
+- Consequences: every lookup that routes, probes or authenticates asks for `enabled`, which a deleted node never is; the admin API returns `404` for it and lists it only with `?includeDeleted=true`. The unique index on `domain` covers present nodes only, so the domain can be given to a new node.
+- Hazard: nodes removed before this existed are gone; their raw downloads were set to "no node" and still count as served by the host.
+
 ### H3. Agent connection (the one that drifted)
 
 - Subject: whether a node's agent currently holds a WebSocket to the host.

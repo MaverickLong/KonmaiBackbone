@@ -1,20 +1,19 @@
 import { Alert, Paper, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
-import { useDownloadStats, useEvents, useNodes, useOverview } from '../api/hooks';
+import { useDownloadStats, useEvents, useNodeNames, useOverview } from '../api/hooks';
 import { EventsTable } from '../components/EventsTable';
 import { Loading, StatTile } from '../components/common';
 import { formatBytes, formatCountry, formatRelative } from '../format';
 
 export function OverviewPage() {
   const overview = useOverview();
-  const nodes = useNodes();
+  const nodeNames = useNodeNames();
   const events = useEvents({ limit: 15 });
   const perDay = useDownloadStats({ groupBy: 'day' });
   if (overview.isPending || !overview.data) {
     return <Loading />;
   }
   const data = overview.data;
-  const nodeNames = new Map((nodes.data ?? []).map((node) => [node.id, node.name]));
   return (
     <Stack>
       <Title order={2}>Overview</Title>

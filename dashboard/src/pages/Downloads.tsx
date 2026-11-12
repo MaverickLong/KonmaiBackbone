@@ -2,7 +2,7 @@ import { Group, Paper, SegmentedControl, Select, Stack, Table, Title } from '@ma
 import { AreaChart, BarChart } from '@mantine/charts';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { useApps, useDownloadStats, useNodes, useTrafficStats } from '../api/hooks';
+import { useApps, useDownloadStats, useNodeNames, useTrafficStats } from '../api/hooks';
 import { AddressTraffic } from '../components/AddressTraffic';
 import { formatBytes, formatCountry } from '../format';
 
@@ -21,20 +21,19 @@ export function DownloadsPage() {
   const grouped = useDownloadStats({ from, groupBy });
   const traffic = useTrafficStats({ from, resolution: 'day' });
   const apps = useApps();
-  const nodes = useNodes();
+  const nodeNames = useNodeNames();
 
   const variantNames = new Map(
     (apps.data ?? []).flatMap((app) =>
       app.variants.map((variant) => [String(variant.id), `${app.displayName} · ${variant.name}`]),
     ),
   );
-  const nodeNames = new Map((nodes.data ?? []).map((node) => [String(node.id), node.name]));
   const label = (key: string): string => {
     if (groupBy === 'variant') {
       return variantNames.get(key) ?? key;
     }
     if (groupBy === 'node') {
-      return key === 'host' ? 'host (direct)' : (nodeNames.get(key) ?? `#${key}`);
+      return key === 'host' ? 'host (direct)' : (nodeNames.get(Number(key)) ?? `#${key}`);
     }
     return key === '??' ? 'unknown' : formatCountry(key);
   };
@@ -114,7 +113,7 @@ export function DownloadsPage() {
           </Table.Tbody>
         </Table>
       </Paper>
-      <AddressTraffic from={from} nodes={nodes.data ?? []} />
+      <AddressTraffic from={from} nodeNames={nodeNames} />
     </Stack>
   );
 }

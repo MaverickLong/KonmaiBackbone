@@ -1156,6 +1156,23 @@
           "enumItems": [],
           "mappedType": "datetime"
         },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "datetime",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
         "domain": {
           "name": "domain",
           "type": "text",
@@ -1163,7 +1180,7 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "unique": true,
+          "unique": false,
           "length": null,
           "precision": null,
           "scale": null,
@@ -1472,14 +1489,13 @@
       },
       "indexes": [
         {
-          "columnNames": [
-            "domain"
-          ],
+          "columnNames": [],
           "composite": false,
           "constraint": true,
           "keyName": "node_domain_unique",
           "primary": false,
-          "unique": true
+          "unique": true,
+          "expression": "create unique index `node_domain_unique` on `node` (`domain`) where `deleted_at` is null"
         },
         {
           "columnNames": [

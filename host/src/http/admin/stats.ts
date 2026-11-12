@@ -79,7 +79,9 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
 
   router.get('/overview', async (_request, response) => {
     const now = new Date();
-    const nodes = await em().find(Node, {});
+    // Deleted nodes are loaded too: what they served must not be counted as served by the host.
+    const everyNode = await em().find(Node, {});
+    const nodes = everyNode.filter((node) => !node.deletedAt);
     const connected = new Set(dependencies.connectedNodeIds());
     const weekAgo = new Date(now.getTime() - 7 * dayMilliseconds);
     const recent = await em().execute<
@@ -88,7 +90,7 @@ export function statsRouter(context: Context, dependencies: StatsDependencies): 
       'select node_id, country, count(*) as count from download where at >= ? group by node_id, country',
       [weekAgo],
     );
-    const nodesById = new Map(nodes.map((node) => [node.id, node]));
+    const nodesById = new Map(everyNode.map((node) => [node.id, node]));
     const unserved = new Map<string, number>();
     let last7Days = 0;
     let servedByHost = 0;

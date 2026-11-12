@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import {
   nodeCreate,
+  nodeListQuery,
   nodeUpdate,
   type NodeCreatedView,
   type NodeDetailView,
@@ -26,7 +27,7 @@ function generateToken(): string {
 }
 
 export async function loadNode(em: EntityManager, id: string | number): Promise<Node> {
-  const node = await em.findOne(Node, { id: parse(idParameter, id) });
+  const node = await em.findOne(Node, { id: parse(idParameter, id), deletedAt: null });
   if (node === null) {
     throw notFound('node');
   }
@@ -109,14 +110,17 @@ export function nodesRouter(context: Context, dependencies: NodeDependencies): R
   const views = (nodes: Node[]) =>
     nodeViews(context, em(), nodes, new Set(dependencies.connectedNodeIds()));
 
-  router.get('/', async (_request, response) => {
-    const nodes = await em().find(Node, {}, { orderBy: { name: 'asc' } });
+  router.get('/', async (request, response) => {
+    const query = parse(nodeListQuery, request.query);
+    const nodes = await em().find(Node, query.includeDeleted ? {} : { deletedAt: null }, {
+      orderBy: { name: 'asc' },
+    });
     response.json(await views(nodes));
   });
 
   router.post('/', async (request, response) => {
     const body = parse(nodeCreate, request.body);
-    if ((await em().count(Node, { domain: body.domain })) > 0) {
+    if ((await em().count(Node, { domain: body.domain, deletedAt: null })) > 0) {
       throw conflict('a node with this domain already exists');
     }
     const token = generateToken();
@@ -131,6 +135,7 @@ export function nodesRouter(context: Context, dependencies: NodeDependencies): R
       tokenHash: hashToken(token),
       storageTotalBytes: null,
       storageFreeBytes: null,
+      deletedAt: null,
     });
     await em().flush();
     const created: NodeCreatedView = {
@@ -172,7 +177,7 @@ export function nodesRouter(context: Context, dependencies: NodeDependencies): R
     const node = await loadNode(em(), request.params.id);
     const body = parse(nodeUpdate, request.body);
     if (body.domain !== undefined && body.domain !== node.domain) {
-      if ((await em().count(Node, { domain: body.domain })) > 0) {
+      if ((await em().count(Node, { domain: body.domain, deletedAt: null })) > 0) {
         throw conflict('a node with this domain already exists');
       }
     }
@@ -205,8 +210,14 @@ export function nodesRouter(context: Context, dependencies: NodeDependencies): R
   router.delete('/:id', async (request, response) => {
     const node = await loadNode(em(), request.params.id);
     actions.disconnect(node);
-    em().remove(node);
+    // The row stays so that statistics keep naming the node; everything that could route to it
+    // or let its agent back in is taken away.
+    node.deletedAt = new Date();
+    node.enabled = false;
+    node.tokenHash = hashToken(generateToken());
+    await em().nativeDelete(Holding, { node });
     await em().flush();
+    actions.settingsChanged(node);
     response.status(204).end();
   });
 

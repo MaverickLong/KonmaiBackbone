@@ -57,6 +57,22 @@ export function useNodes() {
   });
 }
 
+// Every node's name by id for labelling statistics and history; deleted nodes are included and
+// marked, because what they served is still counted.
+export function useNodeNames(): Map<number, string> {
+  const nodes = useQuery({
+    queryKey: [...keys.nodes, 'names'],
+    queryFn: () => api<NodeView[]>('/api/admin/nodes', { query: { includeDeleted: 'true' } }),
+    refetchInterval: livePolling,
+  });
+  return new Map(
+    (nodes.data ?? []).map((node) => [
+      node.id,
+      node.deletedAt === null ? node.name : `${node.name} (deleted)`,
+    ]),
+  );
+}
+
 export function useNode(id: number) {
   return useQuery({
     queryKey: keys.node(id),

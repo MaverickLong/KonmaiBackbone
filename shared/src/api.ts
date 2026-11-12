@@ -100,6 +100,8 @@ export const nodeCreate = z.object({
   allowedVariants: nodeFields.allowedVariants.default([]),
 });
 export const nodeUpdate = z.object(nodeFields).partial();
+// Deleted nodes are only listed on request, for naming them in statistics.
+export const nodeListQuery = z.object({ includeDeleted: z.stringbool().default(false) });
 
 export const ingestFile = z.object({
   path: z.string().min(1),

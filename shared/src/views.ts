@@ -108,6 +108,8 @@ export interface NodeView {
   heldBytes: number;
   quota: QuotaView;
   createdAt: string;
+  // Set once the node was deleted; it is kept only so statistics can still name it.
+  deletedAt: string | null;
 }
 
 export interface HoldingView {

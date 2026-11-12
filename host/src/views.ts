@@ -139,6 +139,7 @@ export function nodeView(node: Node, summary: NodeSummary): NodeView {
     heldBytes: summary.heldBytes,
     quota: summary.quota,
     createdAt: node.createdAt.toISOString(),
+    deletedAt: iso(node.deletedAt),
   };
 }
 

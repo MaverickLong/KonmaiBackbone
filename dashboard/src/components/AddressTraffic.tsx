@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { BarChart } from '@mantine/charts';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import type { AddressStatsRow, NodeView } from 'konmai-shared';
+import type { AddressStatsRow } from 'konmai-shared';
 import { Fragment, useState } from 'react';
 import { useAddressStats } from '../api/hooks';
 import { formatBytes } from '../format';
@@ -72,7 +72,13 @@ function NetworkAddresses({
   ));
 }
 
-export function AddressTraffic({ from, nodes }: { from: string; nodes: NodeView[] }) {
+export function AddressTraffic({
+  from,
+  nodeNames,
+}: {
+  from: string;
+  nodeNames: Map<number, string>;
+}) {
   const [groupBy, setGroupBy] = useState<'address' | 'network'>('network');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [opened, setOpened] = useState<Set<string>>(new Set());
@@ -106,7 +112,7 @@ export function AddressTraffic({ from, nodes }: { from: string; nodes: NodeView[
             w={180}
             value={selectedNode}
             onChange={setSelectedNode}
-            data={nodes.map((node) => ({ value: String(node.id), label: node.name }))}
+            data={[...nodeNames].map(([id, name]) => ({ value: String(id), label: name }))}
           />
           <SegmentedControl
             value={groupBy}

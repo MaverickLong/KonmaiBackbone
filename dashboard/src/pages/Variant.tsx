@@ -19,7 +19,7 @@ import {
   useDeleteRelease,
   useDeleteVariant,
   useDownloadStats,
-  useNodes,
+  useNodeNames,
   useUpdateVariant,
   useVariant,
 } from '../api/hooks';
@@ -30,7 +30,7 @@ import { formatBytes, formatDate, formatInterval, formatRelative } from '../form
 export function VariantPage() {
   const id = Number(useParams().id);
   const variant = useVariant(id);
-  const nodes = useNodes();
+  const nodeNames = useNodeNames();
   const packageName = variant.data?.packageName ?? '';
   const update = useUpdateVariant(id, packageName);
   const remove = useDeleteVariant(packageName);
@@ -42,7 +42,6 @@ export function VariantPage() {
     return <Loading />;
   }
   const data = variant.data;
-  const nodeNames = new Map((nodes.data ?? []).map((node) => [node.id, node.name]));
   return (
     <Stack>
       <Group justify="space-between">
