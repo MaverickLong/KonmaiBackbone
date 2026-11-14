@@ -1,6 +1,7 @@
 import {
   Alert,
   Button,
+  Card,
   Center,
   Loader,
   SimpleGrid,
@@ -37,11 +38,18 @@ export function HomePage() {
   return (
     <Stack>
       <FirstVisitNotice />
-      <Title order={1}>「Konmai Academy」</Title>
-      <Typography>
-        问题反馈请前往：
-        <a href="https://space.bilibili.com/1227019768">Bilibili - Konmai Academy</a>
-      </Typography>
+      <Title order={1}>Download without the BS.</Title>
+      <Card fz="sm" lh="md">
+        <Typography>
+          问题反馈请前往：
+          <a href="https://space.bilibili.com/1227019768">Bilibili - Konmai Academy</a>
+        </Typography>
+        <Typography pt="xs">
+          想支持我们？觉得我们网速很快？
+          <a href="https://www.dmit.io/aff.php?aff=5829">欢迎前往 DMIT 选购同款服务器</a>
+        </Typography>
+      </Card>
+
       <TextInput
         placeholder="搜索游戏名或包名"
         leftSection={<IconSearch size={16} />}
