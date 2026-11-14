@@ -38,7 +38,7 @@ export function HomePage() {
   return (
     <Stack>
       <FirstVisitNotice />
-      <Title order={1}>Download without the BS.</Title>
+      <Title order={1}>Download w/o the BS.</Title>
       <Card fz="sm" lh="md">
         <Typography>
           问题反馈请前往：
@@ -46,7 +46,9 @@ export function HomePage() {
         </Typography>
         <Typography pt="xs">
           想支持我们？觉得我们网速很快？
-          <a href="https://www.dmit.io/aff.php?aff=5829">欢迎前往 DMIT 选购同款服务器</a>
+          <a style={{ whiteSpace: 'nowrap' }} href="https://www.dmit.io/aff.php?aff=5829">
+            欢迎前往 DMIT 选购同款服务器
+          </a>
         </Typography>
       </Card>
 
