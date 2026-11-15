@@ -58,7 +58,11 @@ export function HomePage() {
         </Typography>
         <Typography pt="xs">
           想支持我们？觉得我们网速很快？
-          <a style={{ whiteSpace: 'nowrap' }} href="https://www.dmit.io/aff.php?aff=5829">
+          <a
+            style={{ whiteSpace: 'nowrap' }}
+            rel="sponsored"
+            href="https://www.dmit.io/aff.php?aff=5829"
+          >
             欢迎前往 DMIT 选购同款服务器
           </a>
         </Typography>
