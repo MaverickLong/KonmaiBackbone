@@ -14,10 +14,6 @@ export function LicensesPage() {
       </Text>
       <Text>This website is not affiliated in any form with Google LLC or Lowiro Limited.</Text>
       <Title order={2}>Open Source Licenses</Title>
-      <Text size="sm" c="dimmed">
-        The site is built with the packages below; each entry reproduces the license text shipped
-        with the installed version.
-      </Text>
       <Accordion variant="separated">
         {dependencyLicenses.map((dependency) => (
           <Accordion.Item key={dependency.name} value={dependency.name}>

@@ -46,7 +46,7 @@ export function BmsPage() {
   const total = results.data?.pages[0]?.total_pages;
   return (
     <Stack className="document">
-      <Title order={2}>BMS Package Downloader (Alpha)</Title>
+      <Title order={1}>BMS Package Downloader (Alpha)</Title>
       <Group grow align="flex-start">
         <TextInput
           label="Search"
