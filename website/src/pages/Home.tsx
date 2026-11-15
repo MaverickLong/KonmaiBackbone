@@ -13,10 +13,10 @@ import {
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import type { PublicAppView } from 'konmai-shared';
-import { useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router';
 import { useCatalogue } from '../api';
-import { groupByLetter, letters, matchesSearch } from '../catalogue';
+import { appForHash, groupByLetter, letters, matchesSearch } from '../catalogue';
 import { AlphabetBar } from '../components/AlphabetBar';
 import { AppCard } from '../components/AppCard';
 import { AppModal } from '../components/AppModal';
@@ -33,6 +33,18 @@ export function HomePage() {
   const open = (app: PublicAppView | null) => {
     setParams(app ? { app: app.packageName } : {}, { replace: true });
   };
+  // A link in the old site's `/#<game name>` form becomes `?app=` once the catalogue can tell
+  // which app it means; setting the parameter also drops the hash.
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (catalogue.data === undefined || openedPackage !== null) {
+      return;
+    }
+    const linked = appForHash(catalogue.data, hash);
+    if (linked !== null) {
+      setParams({ app: linked.packageName }, { replace: true });
+    }
+  }, [catalogue.data, hash, openedPackage, setParams]);
 
   const groups = groupByLetter(apps.filter((app) => matchesSearch(app, search)));
   return (
