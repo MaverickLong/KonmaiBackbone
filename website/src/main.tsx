@@ -1,44 +1,27 @@
 import '@mantine/core/styles.css';
 import './styles.css';
-import { createTheme, MantineProvider } from '@mantine/core';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
+import { createBrowserRouter, matchPath } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { router } from './routes';
+import { createQueryClient } from './api';
+import { prerenderedElementId, type Prerendered } from './prerendered';
+import { Providers } from './Providers';
+import { routes } from './routes';
 
-// The old site's accent green, expanded into the ten shades Mantine expects.
-const theme = createTheme({
-  primaryColor: 'brand',
-  colors: {
-    brand: [
-      '#e6f7ee',
-      '#c6ebd8',
-      '#a3dfc1',
-      '#7fd3aa',
-      '#5dc794',
-      '#3eaf7c',
-      '#339a6b',
-      '#28855a',
-      '#1d7049',
-      '#125b38',
-    ],
-  },
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
-  headings: { fontWeight: '600' },
-});
+const embedded = document.getElementById(prerenderedElementId);
+const prerendered = embedded === null ? null : (JSON.parse(embedded.textContent) as Prerendered);
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
-});
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="auto">
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </MantineProvider>
-  </StrictMode>,
+const application = (
+  <Providers queryClient={createQueryClient(prerendered?.catalogue ?? null)}>
+    <RouterProvider router={createBrowserRouter(routes)} />
+  </Providers>
 );
+const container = document.getElementById('root')!;
+// For an address it has no page for, the web server answers with one made for something else:
+// normally the 404 page, which has nothing rendered in it. Only markup rendered for this very
+// address can be taken over, anything else is replaced.
+if (prerendered !== null && matchPath(prerendered.path, location.pathname) !== null) {
+  hydrateRoot(container, application);
+} else {
+  createRoot(container).render(application);
+}

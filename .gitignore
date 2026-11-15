@@ -162,3 +162,4 @@ storage/
 .migration-scratch.sqlite*
 downloader/src/gpapi/googleplay_pb2.py
 old_frontend/
+dist-prerender/

@@ -1,7 +1,8 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { QueryClient, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { PublicAppView } from 'konmai-shared';
 
-const apiBase = (import.meta.env['VITE_API_BASE'] as string | undefined)?.replace(/\/+$/, '') ?? '';
+export const apiBase =
+  (import.meta.env['VITE_API_BASE'] as string | undefined)?.replace(/\/+$/, '') ?? '';
 
 const syncingRefetchMilliseconds = 30_000;
 
@@ -13,9 +14,32 @@ async function getJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+const catalogueKey = ['catalogue'];
+
+// The catalogue a page was prerendered with.
+export interface CatalogueSnapshot {
+  apps: PublicAppView[];
+  // Milliseconds since the epoch.
+  fetchedAt: number;
+  // The backend's name for exactly this catalogue. The next prerender asks about it to learn
+  // whether anything has changed.
+  etag: string | null;
+}
+
+export function createQueryClient(catalogue: CatalogueSnapshot | null): QueryClient {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
+  });
+  if (catalogue !== null) {
+    // Dated as fetched, so that a browser refreshes a catalogue that has aged inside a page.
+    queryClient.setQueryData(catalogueKey, catalogue.apps, { updatedAt: catalogue.fetchedAt });
+  }
+  return queryClient;
+}
+
 export function useCatalogue() {
   return useQuery({
-    queryKey: ['catalogue'],
+    queryKey: catalogueKey,
     queryFn: () => getJson<PublicAppView[]>(`${apiBase}/api/public/apps`),
     // A release that just came in cannot be downloaded until a node has fetched it; keep looking
     // so that someone waiting with the page open sees the button come alive.

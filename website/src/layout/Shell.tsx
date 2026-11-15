@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   AppShell,
+  Box,
   Burger,
   Divider,
   Group,
@@ -13,7 +14,9 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconExternalLink, IconMoon, IconSun } from '@tabler/icons-react';
-import { Link, Outlet, useLocation } from 'react-router';
+import { useEffect } from 'react';
+import { Link, Outlet, useLocation, useMatches } from 'react-router';
+import type { PageMetadata } from '../routes';
 
 const links = [
   { to: '/', label: '游戏下载' },
@@ -30,6 +33,14 @@ export function Shell() {
   const location = useLocation();
   const { setColorScheme } = useMantineColorScheme();
   const colorScheme = useComputedColorScheme('light');
+  // A prerendered page arrives with its title; this follows the visitor from page to page after
+  // that. The redirects have no title of their own.
+  const metadata = useMatches().at(-1)?.handle as PageMetadata | undefined;
+  useEffect(() => {
+    if (metadata !== undefined) {
+      document.title = metadata.title;
+    }
+  }, [metadata]);
   return (
     <AppShell
       header={{ height: 56 }}
@@ -49,7 +60,10 @@ export function Shell() {
             aria-label="切换深色模式"
             onClick={() => setColorScheme(colorScheme === 'dark' ? 'light' : 'dark')}
           >
-            {colorScheme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
+            {/* Both are in the markup and the stylesheet hides one: a prerendered page cannot
+                know which scheme its visitor uses. */}
+            <Box component={IconSun} size={20} lightHidden />
+            <Box component={IconMoon} size={20} darkHidden />
           </ActionIcon>
         </Group>
       </AppShell.Header>
