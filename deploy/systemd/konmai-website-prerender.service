@@ -1,0 +1,13 @@
+[Unit]
+Description=Konmai Academy website prerender
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=konmai
+Group=konmai
+WorkingDirectory=/srv/konmai/app/website
+ExecStart=/usr/bin/node /srv/konmai/app/website/dist-prerender/prerender.js
+NoNewPrivileges=true
+PrivateTmp=true

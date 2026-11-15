@@ -155,16 +155,65 @@ The last form publishes hand-made releases for `manual` variants.
 
 ## Public website (Konmai Academy)
 
-The site in `website/` is a static build that reads the catalogue from the host's public API
-(`/api/public/apps`, CORS enabled) and links to `/d/…` and `/icons/…` on the host. Build it with
-the host's public origin baked in and serve `website/dist` from any static web server:
+The site in `website/` is built into static HTML. Every page is rendered once, at build time, and
+the home page already contains the game list, so search engines and link previews read the content
+without running scripts, and nothing is rendered per visitor. In the browser the pages work as
+before: they refresh the catalogue from the host's public API (`/api/public/apps`, CORS enabled)
+and link to `/d/…` and `/icons/…` on the host.
 
 ```sh
-VITE_API_BASE=https://cdn.example.com yarn workspace konmai-website build
+VITE_API_BASE=https://cdn.example.com VITE_SITE_URL=https://www.example.com \
+  yarn workspace konmai-website build
 ```
 
-nginx needs only `root /srv/konmai/app/website/dist; location / { try_files $uri /index.html; }`.
-Leave `VITE_API_BASE` unset when the site is served from the same origin as the host.
+- `VITE_API_BASE` is the host's public origin. Leave it unset when the site is served from the
+  same origin as the host; the build then reads the catalogue from `KONMAI_HOST_URL` (default
+  `http://127.0.0.1:3000`).
+- `VITE_SITE_URL` is the site's own public origin, used for the canonical link of every page.
+  Without it the canonical links are relative.
+
+A build that cannot reach the host still succeeds: the home page is rendered without the game
+list, which browsers load themselves, until the next run described below.
+
+Serve `website/dist`:
+
+```nginx
+root /srv/konmai/app/website/dist;
+error_page 404 /404.html;
+
+location / {
+    try_files $uri $uri/index.html =404;
+    add_header Cache-Control "no-cache";
+}
+location /assets/ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+}
+location = /bms {
+    return 301 /bms/download;
+}
+```
+
+An unknown address is answered with status 404 and `404.html`, whose script still takes the
+visitor to the home page.
+
+### Keeping the game list current
+
+`node website/dist-prerender/prerender.js` asks the host whether the catalogue has changed since
+the pages were rendered, and renders them again only if it has; an unchanged run costs about a
+tenth of a second of CPU. Run it every few minutes, either with the units in `deploy/systemd`
+
+```sh
+cp deploy/systemd/konmai-website-prerender.* /etc/systemd/system/
+systemctl enable --now konmai-website-prerender.timer
+```
+
+or from cron:
+
+```
+*/5 * * * * /usr/bin/node /srv/konmai/app/website/dist-prerender/prerender.js
+```
+
+While the host cannot be reached the pages stay as they are and the run exits with status 1.
 
 ## Updating
 
@@ -186,3 +235,6 @@ Migrations are applied on startup by the host and node processes.
 - Stop nginx on a node: within about five minutes the node turns faulty in the dashboard and the
   alert e-mail arrives; start it again and the recovery e-mail follows.
 - `https://cdn.example.com/api/public/apps` lists the catalogue for the website.
+- `curl -s https://www.example.com/ | grep -o mantine-Card-root | wc -l` prints about the number of
+  games: the list is in the page itself. `curl -I https://www.example.com/no-such-page` answers
+  `404`.
